@@ -1,0 +1,1889 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão de Capacidade & M.O. v21-abf | S&OP + Abs, Mix e Turnos</title>
+    <meta name="theme-color" content="#1e3a8a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="SOP Capacidade">
+    <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        dark: { 950: '#070b14', 900: '#0b1320', 800: '#131e32', 700: '#1c2c46' },
+                        neon: { blue: '#00f3ff', green: '#39ff14', alert: '#ff003c', warning: '#ffea00' }
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        ::-webkit-scrollbar { height: 8px; width: 8px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        .dark ::-webkit-scrollbar-track { background: #0b1320; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+        .dark ::-webkit-scrollbar-thumb { background: #1c2c46; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #00f3ff; }
+        
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; }
+        
+        .btn-control { transition: all 0.2s ease-in-out; }
+        
+        .dark .glow-text-blue { text-shadow: 0 0 8px rgba(0, 243, 255, 0.6); }
+        .dark .glow-text-green { text-shadow: 0 0 8px rgba(57, 255, 20, 0.6); }
+        
+        .toggle-checkbox:checked { right: 0; border-color: #16a34a; }
+        .dark .toggle-checkbox:checked { border-color: #39ff14; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #16a34a; }
+        .dark .toggle-checkbox:checked + .toggle-label { background-color: #39ff14; box-shadow: 0 0 10px rgba(57, 255, 20, 0.5); }
+        .toggle-checkbox:disabled + .toggle-label { opacity: 0.4; cursor: not-allowed; }
+        
+        /* ===== Impressão dos Cenários (2 folhas) ===== */
+        #print-sheet { display: none; font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; }
+        #print-sheet .ps-page { padding: 2px; }
+        #print-sheet h1 { font-size: 20px; line-height: 1.2; color: #1e3a8a; }
+        #print-sheet h2 { font-size: 13px; color: #1e3a8a; margin: 10px 0 4px 0; }
+        #print-sheet .ps-sub { font-size: 10.5px; color: #475569; margin: 2px 0 8px 0; }
+        #print-sheet table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
+        #print-sheet th, #print-sheet td { border: 1px solid #cbd5e1; padding: 2.5px 4px; text-align: left; }
+        #print-sheet th { background: #1e3a8a; color: #fff; font-size: 8px; text-transform: uppercase; }
+        #print-sheet tfoot td { font-weight: bold; background: #f1f5f9; }
+        #print-sheet .ps-card { border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 7px 10px; margin-bottom: 8px; }
+        #print-sheet .ps-card h3 { margin: 0 0 4px 0; font-size: 11.5px; }
+        #print-sheet .ps-grid { display: flex; gap: 6px; flex-wrap: wrap; }
+        #print-sheet .ps-kpi { border: 1px solid #e2e8f0; background: #f8fafc; padding: 3px 8px; border-radius: 4px; font-size: 9px; color: #475569; }
+        #print-sheet .ps-kpi b { display: block; font-size: 13px; color: #0f172a; }
+        #print-sheet .ps-tag { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 8.5px; font-weight: bold; }
+        #print-sheet .ps-ok { background: #dcfce7; color: #166534; }
+        #print-sheet .ps-warn { background: #fef3c7; color: #92400e; }
+        #print-sheet .ps-bad { background: #fee2e2; color: #991b1b; }
+        #print-sheet .ps-line { font-size: 10px; margin: 3px 0; }
+        #print-sheet .ps-foot { font-size: 8.5px; color: #64748b; border-top: 1px solid #cbd5e1; margin-top: 10px; padding-top: 4px; }
+        @media print {
+            @page { size: A4 portrait; margin: 10mm; }
+            body > header, body > main, #modal-novo-setor { display: none !important; }
+            #print-sheet { display: block !important; }
+            #print-sheet .ps-page { page-break-after: always; }
+            #print-sheet .ps-page:last-child { page-break-after: auto; }
+            #print-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-dark-950 text-slate-800 dark:text-slate-300 font-sans min-h-screen flex flex-col transition-colors duration-300">
+
+    <!-- Header -->
+    <header class="bg-white dark:bg-dark-900 text-slate-800 dark:text-white shadow-md dark:shadow-lg relative z-20 border-b border-slate-200 dark:border-dark-700 transition-colors duration-300">
+        <div class="px-6 py-4 flex justify-between items-center">
+            <div class="flex items-center gap-3">
+                <i class="fas fa-network-wired text-2xl text-blue-600 dark:text-neon-blue dark:glow-text-blue"></i>
+                <div>
+                    <h1 class="text-xl font-bold leading-tight">Painel de S&OP Data-Driven</h1>
+                    <p class="text-xs text-slate-500 dark:text-neon-blue dark:opacity-80">Headcount Balance | Hierarquia & M.O. Mínima</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <button onclick="app.toggleTheme()" class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-yellow-400 hover:bg-slate-200 dark:hover:bg-dark-700 transition-colors">
+                    <i class="fas fa-moon dark:hidden"></i>
+                    <i class="fas fa-sun hidden dark:block"></i>
+                </button>
+                <button id="btn-lock" onclick="app.toggleLock()" class="flex items-center gap-2 px-4 py-2 rounded font-bold transition-all duration-200 bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 dark:bg-dark-800 dark:border-neon-green dark:text-neon-green dark:shadow-[0_0_8px_rgba(57,255,20,0.3)] dark:hover:bg-neon-green dark:hover:text-dark-950">
+                    <i class="fas fa-lock" id="icon-lock"></i>
+                    <span id="text-lock">Edição Travada</span>
+                </button>
+            </div>
+        </div>
+        
+        <div class="px-6 flex gap-1 mt-2">
+            <button onclick="app.switchTab(0)" id="tab-btn-0" class="px-4 py-2 rounded-t-lg bg-white dark:bg-dark-800 text-slate-500 dark:text-slate-400 hover:text-indigo-600 dark:hover:text-indigo-300 font-medium border-t border-x border-transparent transition-colors cursor-pointer">
+                <i class="fas fa-book-open mr-2"></i>Capa do Projeto
+            </button>
+            <button onclick="app.switchTab(1)" id="tab-btn-1" class="px-4 py-2 rounded-t-lg bg-slate-100 dark:bg-dark-950 text-blue-700 dark:text-neon-blue font-bold border-t border-x border-slate-300 dark:border-neon-blue transition-colors">
+                <i class="fas fa-chart-line mr-2"></i>Dashboard
+            </button>
+            <button onclick="app.switchTab(3)" id="tab-btn-3" class="px-4 py-2 rounded-t-lg bg-white dark:bg-dark-800 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-neon-blue font-medium border-t border-x border-transparent transition-colors cursor-pointer">
+                <i class="fas fa-columns mr-2"></i>Cenários
+            </button>
+            <button onclick="app.switchTab(4)" id="tab-btn-4" class="px-4 py-2 rounded-t-lg bg-white dark:bg-dark-800 text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-300 font-medium border-t border-x border-transparent transition-colors cursor-pointer">
+                <i class="fas fa-sitemap mr-2"></i>Organograma
+            </button>
+            <button onclick="app.switchTab(2)" id="tab-btn-2" class="px-4 py-2 rounded-t-lg bg-white dark:bg-dark-800 text-slate-500 dark:text-slate-400 hover:text-green-600 dark:hover:text-neon-green font-medium border-t border-x border-transparent transition-colors cursor-pointer">
+                <i class="fas fa-calculator mr-2"></i>Base Teórica
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col relative">
+        <!-- ABA 0: CAPA -->
+        <div id="tab-0" class="p-6 hidden flex-grow">
+            <div class="max-w-7xl mx-auto w-full flex flex-col gap-6">
+                <div class="relative bg-gradient-to-r from-slate-900 via-blue-900 to-indigo-900 text-white rounded-2xl shadow-xl dark:shadow-[0_0_30px_rgba(0,243,255,0.15)] p-8 md:p-10 overflow-hidden">
+                    <svg class="absolute inset-0 w-full h-full opacity-25 pointer-events-none" viewBox="0 0 900 340" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
+                        <defs>
+                            <linearGradient id="capGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#60a5fa" stop-opacity="0.9"/><stop offset="100%" stop-color="#1e40af" stop-opacity="0.55"/></linearGradient>
+                            <linearGradient id="demGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fde047" stop-opacity="0.95"/><stop offset="100%" stop-color="#f59e0b" stop-opacity="0.7"/></linearGradient>
+                            <linearGradient id="garGrad" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#f87171" stop-opacity="0.95"/><stop offset="100%" stop-color="#dc2626" stop-opacity="0.6"/></linearGradient>
+                        </defs>
+                        <line x1="40" y1="250" x2="860" y2="250" stroke="#ffffff" stroke-opacity="0.30" stroke-width="2"/>
+                        <path d="M80 120 L180 152 L280 110 L380 132 L480 100 L580 142 L680 128 L780 116" fill="none" stroke="#ffffff" stroke-opacity="0.35" stroke-dasharray="5 6" stroke-width="1.5"/>
+                        <g>
+                            <rect x="52" y="120" width="56" height="130" rx="4" fill="url(#capGrad)"/>
+                            <rect x="152" y="138" width="56" height="112" rx="4" fill="url(#capGrad)"/>
+                            <rect x="252" y="110" width="56" height="140" rx="4" fill="url(#capGrad)"/>
+                            <rect x="352" y="132" width="56" height="118" rx="4" fill="url(#capGrad)"/>
+                            <rect x="452" y="100" width="56" height="150" rx="4" fill="url(#capGrad)"/>
+                            <rect x="552" y="142" width="56" height="108" rx="4" fill="url(#capGrad)"/>
+                            <rect x="652" y="128" width="56" height="122" rx="4" fill="url(#capGrad)"/>
+                            <rect x="752" y="116" width="56" height="134" rx="4" fill="url(#capGrad)"/>
+                        </g>
+                        <g>
+                            <rect x="64" y="154" width="32" height="96" rx="3" fill="url(#demGrad)"/>
+                            <rect x="164" y="142" width="32" height="108" rx="3" fill="url(#demGrad)"/>
+                            <rect x="264" y="132" width="32" height="118" rx="3" fill="url(#demGrad)"/>
+                            <rect x="364" y="138" width="32" height="112" rx="3" fill="url(#demGrad)"/>
+                            <rect x="464" y="126" width="32" height="124" rx="3" fill="url(#demGrad)"/>
+                            <rect x="564" y="82" width="32" height="168" rx="3" fill="url(#garGrad)"/>
+                            <rect x="664" y="140" width="32" height="110" rx="3" fill="url(#demGrad)"/>
+                            <rect x="764" y="146" width="32" height="104" rx="3" fill="url(#demGrad)"/>
+                        </g>
+                        <g fill="#ffffff" font-size="13" font-weight="bold">
+                            <text x="580" y="60" text-anchor="middle" fill="#fca5a5">GARGALO &gt; 95%</text>
+                            <text x="580" y="73" text-anchor="middle" font-size="10" fill="#fca5a5" font-weight="normal">demanda &gt;&gt; capacidade</text>
+                            <line x1="548" y1="142" x2="612" y2="142" stroke="#fca5a5" stroke-width="1.5" stroke-dasharray="3 4"/>
+                        </g>
+                        <g font-size="9.5" fill="#ffffff" fill-opacity="0.8" font-weight="bold">
+                            <text x="60" y="285">DEMANDA × CAPACIDADE POR RECURSO — PRINCÍPIO DO PROBLEMA</text>
+                            <rect x="560" y="272" width="10" height="10" fill="url(#demGrad)"/>
+                            <text x="574" y="281">Demanda</text>
+                            <rect x="646" y="272" width="10" height="10" fill="url(#capGrad)"/>
+                            <text x="660" y="281">Capacidade</text>
+                            <rect x="744" y="272" width="10" height="10" fill="url(#garGrad)"/>
+                            <text x="758" y="281">Gargalo</text>
+                        </g>
+                    </svg>
+                    <div class="relative">
+                        <p class="text-[11px] uppercase tracking-[0.2em] text-blue-200 font-black">Plano Diretor · Capacidade &amp; Mão de Obra · Parque Fabril</p>
+                        <h1 class="text-3xl md:text-4xl font-black mt-2">Simulador de S&amp;OP <span class="text-yellow-300">Data-Driven</span></h1>
+                        <p class="text-blue-100 mt-3 max-w-3xl text-sm relative leading-relaxed">O problema: adequar a <b>capacidade instalada</b> e a <b>mão de obra</b> à <b>demanda projetada</b>, identificando gargalos reais (&gt;95%), zonas de atenção (&gt;85%) e o <b>gap de equipe</b> entre o quadro atual e o necessário — por cenário e por recurso.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white dark:bg-dark-900 rounded-2xl border border-slate-200 dark:border-dark-700 p-6 shadow-sm">
+                    <div class="flex flex-wrap items-center justify-between gap-2 mb-5">
+                        <h2 class="text-xl font-black text-slate-800 dark:text-slate-100"><i class="fas fa-compass mr-2 text-indigo-500"></i>Menu do Simulador</h2>
+                        <p class="text-xs text-slate-400">Escolha por onde começar</p>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                        <button onclick="app.switchTab(1)" class="w-full text-left flex flex-col gap-2 bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-dark-800 dark:to-dark-900 border border-blue-200 dark:border-dark-700 hover:border-blue-400 dark:hover:border-neon-blue rounded-xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg">
+                            <span class="w-10 h-10 rounded-lg bg-blue-600 text-white flex items-center justify-center shadow text-lg"><i class="fas fa-chart-line"></i></span>
+                            <span class="block font-black text-slate-800 dark:text-white">Dashboard Operacional</span>
+                            <span class="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-1">Edite setores, demanda e M.O.; acompanhe ocupação e status por recurso em tempo real.</span>
+                        </button>
+                        <button onclick="app.switchTab(3)" class="w-full text-left flex flex-col gap-2 bg-gradient-to-br from-amber-50 to-orange-100 dark:from-dark-800 dark:to-dark-900 border border-amber-200 dark:border-dark-700 hover:border-amber-400 dark:hover:border-yellow-500 rounded-xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg">
+                            <span class="w-10 h-10 rounded-lg bg-orange-500 text-white flex items-center justify-center shadow text-lg"><i class="fas fa-columns"></i></span>
+                            <span class="block font-black text-slate-800 dark:text-white">Cenários Estratégicos</span>
+                            <span class="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-1">Compare Previsto, Médio e Pico; imprima em 2 folhas ou exporte em PDF.</span>
+                        </button>
+                        <button onclick="app.switchTab(4)" class="w-full text-left flex flex-col gap-2 bg-gradient-to-br from-purple-50 to-fuchsia-100 dark:from-dark-800 dark:to-dark-900 border border-purple-200 dark:border-dark-700 hover:border-purple-400 dark:hover:border-purple-300 rounded-xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg">
+                            <span class="w-10 h-10 rounded-lg bg-purple-600 text-white flex items-center justify-center shadow text-lg"><i class="fas fa-sitemap"></i></span>
+                            <span class="block font-black text-slate-800 dark:text-white">Organograma do Parque</span>
+                            <span class="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-1">Arquitetura de recursos com ocupação e M.O. Atual / Mínima / Calculada.</span>
+                        </button>
+                        <button onclick="app.switchTab(2)" class="w-full text-left flex flex-col gap-2 bg-gradient-to-br from-green-50 to-emerald-100 dark:from-dark-800 dark:to-dark-900 border border-green-200 dark:border-dark-700 hover:border-green-400 dark:hover:border-neon-green rounded-xl p-4 transition-all hover:-translate-y-0.5 hover:shadow-lg">
+                            <span class="w-10 h-10 rounded-lg bg-green-600 text-white flex items-center justify-center shadow text-lg"><i class="fas fa-calculator"></i></span>
+                            <span class="block font-black text-slate-800 dark:text-white">Base Teórica &amp; Engine</span>
+                            <span class="block text-[11px] text-slate-500 dark:text-slate-400 leading-snug mt-1">Memorial do motor: fórmulas, benchmarks, premissas e roadmap de evolução.</span>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ABA 1: DASHBOARD -->
+        <div id="tab-1" class="p-6 flex flex-col gap-6 flex-grow">
+            <!-- Barra de Cenários -->
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4 bg-white dark:bg-dark-900 p-4 rounded-xl shadow-sm dark:shadow-lg border border-slate-200 dark:border-dark-700">
+                <div class="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-lg border border-slate-200 dark:border-dark-800">
+                    <button id="btn-cenario-1" onclick="app.setScenario(1)" class="px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 bg-white dark:bg-dark-800 text-blue-700 dark:text-neon-blue shadow-sm dark:border dark:border-neon-blue dark:shadow-[0_0_5px_rgba(0,243,255,0.2)]">Cenário 1: Previsto</button>
+                    <button id="btn-cenario-2" onclick="app.setScenario(2)" class="px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-neon-blue">Cenário 2: Vol. Médio</button>
+                    <button id="btn-cenario-3" onclick="app.setScenario(3)" class="px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-neon-blue">Cenário 3: Pico</button>
+                </div>
+                <div class="flex flex-col gap-2 bg-slate-50 dark:bg-dark-800 px-4 py-2 rounded-lg border border-slate-200 dark:border-dark-700">
+                    <div class="flex gap-4 items-center flex-wrap">
+                        <span class="text-sm font-semibold text-slate-600 dark:text-slate-300">Ajustes Volumétricos:</span>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-500 dark:text-slate-400">Cenário 2 (%):</label>
+                            <input type="number" id="input-var-c2" value="-10" class="w-16 border border-slate-300 dark:border-dark-700 bg-white dark:bg-dark-950 text-blue-700 dark:text-neon-blue rounded px-1 py-1 text-sm text-center font-bold disabled:bg-slate-100 disabled:dark:bg-dark-900 disabled:opacity-50" onchange="app.updateGlobalVars()" disabled>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-500 dark:text-slate-400">Cenário 3 (%):</label>
+                            <input type="number" id="input-var-c3" value="25" class="w-16 border border-slate-300 dark:border-dark-700 bg-white dark:bg-dark-950 text-blue-700 dark:text-neon-blue rounded px-1 py-1 text-sm text-center font-bold disabled:bg-slate-100 disabled:dark:bg-dark-900 disabled:opacity-50" onchange="app.updateGlobalVars()" disabled>
+                        </div>
+                        <div class="flex items-center gap-2 border-l border-slate-300 dark:border-dark-700 pl-4" title="Fator de Absenteísmo/Cobertura: margem sobre o FTE calculado para cobrir faltas, férias e treinamentos. MO final = MO base × (1+ABS).">
+                            <label class="text-xs font-bold text-orange-600 dark:text-yellow-400"><i class="fas fa-user-shield mr-1"></i>Absenteísmo (%):</label>
+                            <input type="number" id="input-abs" value="5" min="0" max="30" step="0.5" class="w-16 border border-orange-300 dark:border-yellow-600 bg-white dark:bg-dark-950 text-orange-700 dark:text-yellow-400 rounded px-1 py-1 text-sm text-center font-bold disabled:bg-slate-100 disabled:dark:bg-dark-900 disabled:opacity-50" onchange="app.updateGlobalVars()" disabled>
+                        </div>
+                        <div class="flex items-center gap-2 border-l border-slate-300 dark:border-dark-700 pl-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5 border border-amber-200 dark:border-amber-600/50" title="Feristas ideais = ⌈ Total M.O. Necessária ÷ 12 ⌉. O número é SOMADO aos totais M.O. Atual e M.O. Necessária (rodapé, cards e organograma).">
+                            <label class="text-xs font-bold text-amber-700 dark:text-amber-300"><i class="fas fa-umbrella-beach mr-1"></i>Feristas:</label>
+                            <span id="total-feristas" class="text-lg font-black text-amber-700 dark:text-amber-300">0</span>
+                            <span class="text-[9px] text-amber-500 dark:text-amber-400 leading-tight">(MO÷12) soma aos totais</span>
+                        </div>
+                    </div>
+                    <div class="flex gap-4 items-center flex-wrap border-t border-slate-200 dark:border-dark-700 pt-2">
+                        <span class="text-sm font-semibold text-slate-600 dark:text-slate-300" title="Horas de setup/troca por dia em cada cenário (mix pulverizado). Reduz o Tempo Útil efetivo: TUef = TU − Setup.">Setup Mix (h/dia):</span>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-500 dark:text-slate-400">C1:</label>
+                            <input type="number" id="input-setup-c1" value="0" min="0" max="8" step="0.5" class="w-14 border border-slate-300 dark:border-dark-700 bg-white dark:bg-dark-950 rounded px-1 py-1 text-xs text-center font-bold disabled:opacity-50" onchange="app.updateGlobalVars()" disabled>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-500 dark:text-slate-400">C2:</label>
+                            <input type="number" id="input-setup-c2" value="0" min="0" max="8" step="0.5" class="w-14 border border-slate-300 dark:border-dark-700 bg-white dark:bg-dark-950 rounded px-1 py-1 text-xs text-center font-bold disabled:opacity-50" onchange="app.updateGlobalVars()" disabled>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <label class="text-xs text-slate-500 dark:text-slate-400">C3:</label>
+                            <input type="number" id="input-setup-c3" value="1" min="0" max="8" step="0.5" class="w-14 border border-slate-300 dark:border-dark-700 bg-white dark:bg-dark-950 rounded px-1 py-1 text-xs text-center font-bold disabled:opacity-50" onchange="app.updateGlobalVars()" disabled>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- Painel de sugestão de turnos (OC>100%) -->
+            <div id="shift-panel" class="bg-amber-50 dark:bg-dark-900 border border-amber-300 dark:border-yellow-600 rounded-xl px-4 py-3 shadow-sm text-sm hidden"></div>
+
+            <!-- Tabela Principal -->
+            <div class="bg-white dark:bg-dark-900 rounded-xl shadow-sm dark:shadow-lg border border-slate-200 dark:border-dark-700 overflow-hidden flex-grow flex flex-col min-h-[300px]">
+                <div class="overflow-auto flex-grow max-h-[58vh] 2xl:max-h-[70vh]">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 z-30 shadow-md bg-slate-100 dark:bg-dark-950 text-slate-700 dark:text-slate-300">
+                            <tr class="text-[10px] uppercase tracking-wider text-center border-b-2 border-blue-500 dark:border-neon-blue dark:border-opacity-50">
+                                <th title="Liga/desliga o recurso NESTE cenário (ativoC1/C2/C3). Desligado zera MO e marca Parado." class="px-1 py-3 w-8 bg-slate-100 dark:bg-dark-950">Ativo</th>
+                                <th title="Seletor independente: marca os equipamentos que compõem a capacidade da Fábrica. Não altera os demais cálculos. O total Fábrica soma Cap. Diária/Mensal dos marcados e ativos." class="px-1 py-3 w-8 bg-purple-50 dark:bg-dark-800 border-l border-slate-300 dark:border-dark-700 text-purple-700 dark:text-purple-300 leading-tight">Cap.<br>Fábrica</th>
+                                <th title="Hierarquia Mãe→Filha: soma das filhas deve ser ≤ mãe (ver Base Teórica §3.10). Largura auto-ajustável ao texto." class="px-1 py-3 text-left bg-slate-100 dark:bg-dark-950 min-w-[42px] max-w-[66px] whitespace-normal break-words text-blue-700 dark:text-neon-blue dark:glow-text-blue">Setor / Recurso</th>
+                                <th title="CN (t/h): capacidade nominal de placa. Fórmula: CR = CN × EF/100" class="px-1 py-3 w-12 bg-slate-100 dark:bg-dark-950 leading-tight">Cap.<br>Nom.</th>
+                                <th title="EF (% 0–100): perdas agregadas. CR = CN × EF/100" class="px-1 py-3 w-12 bg-slate-100 dark:bg-dark-950 leading-tight">Efic.</th>
+                                <th title="CR = CN × EF/100 (t/h)" class="px-1 py-3 w-12 bg-slate-200 dark:bg-dark-800 leading-tight border-l border-slate-300 dark:border-dark-700 text-green-700 dark:text-neon-green dark:glow-text-green">Cap.<br>Real</th>
+                                <th title="TU base: 8=1 turno, 16=2 turnos, 21=3 turnos. TUef = TU − Setup do cenário. CD = CR × TUef" class="px-1 py-3 w-16 bg-slate-100 dark:bg-dark-950 leading-tight border-l border-slate-300 dark:border-dark-700">T.<br>Útil</th>
+                                <th title="CD = CR × TU (t/dia). CM = CD × DU (ver memorial §3.3)" class="px-1 py-3 w-16 bg-slate-200 dark:bg-dark-800 leading-tight border-l border-slate-300 dark:border-dark-700 text-green-700 dark:text-neon-green">Cap.<br>Diária</th>
+                                <th title="DB base (C1). Nos cenários 2/3 a célula exibe DC = DB × (1+VAR) já ajustada; editar converte de volta para a base. Ver §3.4" class="px-1 py-3 w-24 bg-slate-100 dark:bg-dark-950 leading-tight border-l border-slate-300 dark:border-dark-700">Demanda</th>
+                                <th title="DU 1–31: dias produtivos. DD = DC / DU" class="px-1 py-3 w-10 bg-slate-100 dark:bg-dark-950 leading-tight">Dias</th>
+                                <th title="DD = DC / DU (t/dia). Ver §3.5" class="px-1 py-3 w-16 border-l border-slate-300 dark:border-dark-700 bg-slate-100 dark:bg-dark-950 leading-tight">Dem.<br>Diária</th>
+                                <th title="OC = DD/CD×100. <85% normal, 85–95% atenção, >95% gargalo. Ver §3.6" class="px-1 py-3 w-20 bg-slate-200 dark:bg-dark-800 leading-tight text-red-600 dark:text-neon-alert">Ocup.</th>
+                                <th title="MOa: headcount real hoje (FTE)" class="px-1 py-3 w-16 border-l border-slate-300 dark:border-dark-700 bg-slate-100 dark:bg-dark-950 leading-tight">MO Atual</th>
+                                <th title="MOmin: piso físico/segurança. MOe = MAX(MOb;MOmin). Ver §1" class="px-1 py-3 w-16 border-l border-slate-300 dark:border-dark-700 bg-orange-50 dark:bg-dark-800 leading-tight text-orange-700 dark:text-yellow-400">MO Mín.</th>
+                                <th title="MOe direta = MAX(MOa×OC/100;MOmin)×(1+ABS); MOe indireta FIXA = MAX(MOa;MOmin)×(1+ABS). Ver §3.7–4 e §8" class="px-1 py-3 w-24 bg-blue-50 dark:bg-dark-950 leading-tight border-l border-blue-200 dark:border-dark-700 text-blue-700 dark:text-neon-blue dark:glow-text-blue">MO Calc.</th>
+                                <th class="px-1 py-3 w-12 border-l border-slate-300 dark:border-dark-700 bg-slate-100 dark:bg-dark-950">Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="table-body" class="text-xs divide-y divide-slate-200 dark:divide-dark-700 bg-white dark:bg-dark-900">
+                            <!-- JS Inject -->
+                        </tbody>
+                        <tfoot class="bg-purple-50 dark:bg-dark-800 border-t-2 border-purple-400 dark:border-purple-500">
+                            <tr class="text-xs font-bold text-center">
+                                <td colspan="7" class="px-2 py-2 text-purple-700 dark:text-purple-300"><i class="fas fa-industry mr-1"></i>FÁBRICA <span class="font-normal">(soma dos marcados e ativos — não altera demais equipamentos)</span></td>
+                                <td class="px-2 py-2 text-green-700 dark:text-neon-green" id="fab-cap-diaria" title="Soma da Cap. Diária dos equipamentos com seletor Cap. Fábrica ligado e ativos no cenário">0,0 t/dia</td>
+                                <td colspan="2" class="px-2 py-2 text-slate-700 dark:text-slate-200" id="fab-cap-mensal" title="Soma da Cap. Mensal (Cap. Diária × Dias Úteis) dos selecionados">0 t/mês</td>
+                                <td colspan="6" class="px-2 py-2 text-slate-400 font-normal" id="fab-count">0 selecionados</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+                
+                <div id="add-sector-container" class="p-3 bg-slate-50 dark:bg-dark-800 border-t border-slate-200 dark:border-dark-700 text-center hidden shrink-0">
+                    <button onclick="app.openModal()" class="px-4 py-1.5 text-sm bg-blue-600 dark:bg-neon-blue text-white dark:text-dark-950 font-bold rounded shadow-sm dark:shadow-[0_0_10px_rgba(0,243,255,0.4)] hover:bg-blue-700 dark:hover:bg-white transition-colors">
+                        <i class="fas fa-plus mr-1"></i>Adicionar Setor
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Footer Totais -->
+            <div class="bg-white dark:bg-dark-900 border border-slate-200 dark:border-dark-700 rounded-xl p-4 shadow-sm dark:shadow-lg mt-auto z-10 sticky bottom-0 shrink-0">
+                <div class="flex justify-between items-center max-w-7xl mx-auto">
+                    <div>
+                        <h3 class="font-bold text-slate-800 dark:text-slate-200 text-lg dark:glow-text-blue">Consolidado Geral (FTE Efetivo)</h3>
+                        <div class="flex gap-4 mt-1 text-xs font-semibold">
+                            <span class="text-blue-600 dark:text-neon-blue">Direta: <span id="ft-dir">0</span></span>
+                            <span class="text-green-600 dark:text-neon-green">Indireta (M.O.I): <span id="ft-ind">0</span></span>
+                        </div>
+                    </div>
+                    <div class="flex gap-8">
+                        <div class="text-center px-4">
+                            <p class="text-xs text-purple-600 dark:text-purple-300 uppercase font-bold" title="Soma da capacidade dos equipamentos com seletor Cap. Fábrica ligado e ativos no cenário atual">Fábrica (Cap. Selec.)</p>
+                            <p class="text-2xl font-black text-purple-700 dark:text-purple-300" id="total-fabrica">0,0 t/dia</p>
+                            <p class="text-[11px] text-slate-500 font-semibold" id="total-fabrica-mes">0 t/mês</p>
+                        </div>
+                        <div class="text-center px-4 border-l border-slate-200 dark:border-dark-700">
+                            <p class="text-xs text-slate-500 uppercase font-bold">Total M.O. Atual</p>
+                            <p class="text-3xl font-black text-slate-700 dark:text-slate-400" id="total-mo-atual">0</p>
+                        </div>
+                        <div class="text-center px-4 border-l border-slate-200 dark:border-dark-700">
+                            <p class="text-xs text-slate-500 uppercase font-bold">Total M.O. Necessária</p>
+                            <p class="text-3xl font-black text-blue-600 dark:text-neon-blue dark:glow-text-blue" id="total-mo-calc">0.0</p>
+                            <p class="text-[11px] text-orange-600 dark:text-yellow-400 font-semibold" id="total-mo-abs">(+5% abs.)</p>
+                        </div>
+                        <div class="text-center flex flex-col justify-center min-w-[180px] border-l border-slate-200 dark:border-dark-700 pl-4">
+                            <div id="status-equipe" class="px-3 py-2 rounded text-sm font-bold border"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-3" class="p-6 hidden flex-grow bg-slate-50 dark:bg-dark-950">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
+                <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-200"><i class="fas fa-columns mr-2 text-blue-600 dark:text-neon-blue"></i>Visão Estratégica: Comparativo de Cenários</h2>
+                <div class="flex flex-wrap gap-2">
+                    <button onclick="app.printScenarios()" class="px-4 py-2 rounded-lg font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"><i class="fas fa-print mr-2"></i>Imprimir Cenários (2 folhas)</button>
+                    <button onclick="app.exportPDF()" class="px-4 py-2 rounded-lg font-bold text-sm bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm"><i class="fas fa-file-pdf mr-2"></i>Exportar PDF</button>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="comparativo-container"></div>
+        </div>
+
+        <div id="tab-4" class="p-6 hidden flex-grow bg-slate-50 dark:bg-dark-950">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100"><i class="fas fa-sitemap mr-2 text-purple-600 dark:text-purple-300"></i>Organograma do Parque Fabril</h2>
+                <div class="flex flex-wrap items-center gap-2">
+                    <div id="org-scenario-pills" class="flex bg-slate-100 dark:bg-dark-950 p-1 rounded-lg border border-slate-200 dark:border-dark-800"></div>
+                    <button onclick="app.collapseAllOrg(true)" class="px-2 py-1 text-[11px] font-bold rounded bg-white dark:bg-dark-900 border border-slate-300 dark:border-dark-700 hover:border-purple-500 text-slate-600 dark:text-slate-300"><i class="fas fa-expand mr-1"></i>Expandir</button>
+                    <button onclick="app.collapseAllOrg(false)" class="px-2 py-1 text-[11px] font-bold rounded bg-white dark:bg-dark-900 border border-slate-300 dark:border-dark-700 hover:border-purple-500 text-slate-600 dark:text-slate-300"><i class="fas fa-compress mr-1"></i>Recolher</button>
+                </div>
+            </div>
+            <div id="org-resumo" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4"></div>
+            <div class="text-xs italic text-slate-500 dark:text-slate-400 mb-3 border-l-4 border-purple-300 dark:border-purple-500 pl-3">
+                Estrutura lida do motor: cada cartão reflete o cenário ativo e os valores de M.O. <b>Atual</b> (azul), <b>Mínima/piso</b> (laranja) e <b>Calc.</b> (verde/vermelho) já com cobertura de absenteísmo. Grupos podem ser expandidos/recolhidos.
+            </div>
+            <div id="organograma-container" class="space-y-3"></div>
+        </div>
+
+        <div id="tab-2" class="p-6 hidden max-w-7xl mx-auto w-full flex-grow bg-slate-50 dark:bg-dark-950">
+            <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-100"><i class="fas fa-calculator mr-2 text-green-600 dark:text-neon-green"></i>Base Teórica — Memorial de Cálculo (Engine v21-fix)</h2>
+                <div class="flex flex-wrap gap-2 text-xs">
+                    <button onclick="app.exportCSV()" class="px-3 py-1.5 rounded font-bold bg-white dark:bg-dark-900 border border-slate-300 dark:border-dark-700 hover:border-blue-500"><i class="fas fa-file-csv mr-1"></i>Exportar CSV</button>
+                    <button onclick="app.exportJSON()" class="px-3 py-1.5 rounded font-bold bg-white dark:bg-dark-900 border border-slate-300 dark:border-dark-700 hover:border-blue-500"><i class="fas fa-file-export mr-1"></i>Exportar JSON</button>
+                    <label class="px-3 py-1.5 rounded font-bold bg-white dark:bg-dark-900 border border-slate-300 dark:border-dark-700 hover:border-green-500 cursor-pointer"><i class="fas fa-file-import mr-1"></i>Importar JSON<input type="file" accept=".json,application/json" class="hidden" onchange="app.importJSON(event)"></label>
+                    <button onclick="app.resetFactory()" class="px-3 py-1.5 rounded font-bold bg-white dark:bg-dark-900 border border-slate-300 dark:border-dark-700 hover:border-red-500"><i class="fas fa-undo mr-1"></i>Reset fábrica (13 setores)</button>
+                </div>
+            </div>
+            <p class="text-xs italic text-teal-700 dark:text-teal-300 mb-4 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Legenda: notas em <b>itálico teal</b> = benchmarking global (Gallup, Deloitte, WEF) — referência externa para calibrar o padrão local, não meta contratual.</p>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2"><i class="fas fa-shield-alt text-orange-500 mr-2"></i>1. Conceito: M.O. Mínima (FTE de Piso)</h3>
+                <p class="text-sm text-slate-600 dark:text-slate-400">A substituição do "Arredondamento" pela "M.O. Mínima" protege a modelagem de distorções. Em vez de inflar matematicamente a capacidade humana, o sistema respeita o layout físico e a segurança. Se uma máquina requer no mínimo 1 operador para rodar, este será o piso, independentemente de a ocupação ser 10% ou 90%. Fórmula geral: <code class="px-1 bg-slate-100 dark:bg-dark-950 rounded font-mono">MO_Efetiva = MAX(MO_Bruta ; MO_Mínima)</code>, com exceção <code>MO_Efetiva=0</code> se setor inativo ou ocupação = 0 (direto).</p>
+                <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (Deloitte Human Capital, WEF – segurança operacional): operações maduras dimensionam o piso pelo posto crítico de segurança/ergonomia, nunca por rateio de volume — prática replicada aqui no MAX com MOmin.</p>
+            </div>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-book mr-2 text-blue-600"></i>2. Dicionário de variáveis (entradas do Dashboard)</h3>
+                <div class="overflow-auto"><table class="w-full text-xs border-collapse">
+                    <thead><tr class="bg-slate-100 dark:bg-dark-950 text-left"><th class="p-2 border">Sigla</th><th class="p-2 border">Nome na tela</th><th class="p-2 border">Unidade</th><th class="p-2 border">Tipo</th><th class="p-2 border">Descrição padronizada</th></tr></thead>
+                    <tbody class="text-slate-600 dark:text-slate-300">
+                        <tr><td class="p-2 border font-mono font-bold">CN</td><td class="p-2 border">Cap. Nom.</td><td class="p-2 border">t/h</td><td class="p-2 border">Entrada</td><td class="p-2 border">Capacidade nominal de placa do equipamento, em condição ideal, sem perdas.</td></tr>
+                        <tr><td class="p-2 border font-mono font-bold">EF</td><td class="p-2 border">Eficiência</td><td class="p-2 border">%</td><td class="p-2 border">Entrada 0–100</td><td class="p-2 border">Fator agregado de perdas (disponibilidade × performance × qualidade). Ex.: 60% = de cada 10 h nominais, 6 h são úteis.</td></tr>
+                        <tr><td class="p-2 border font-mono font-bold">TU</td><td class="p-2 border">T. Útil</td><td class="p-2 border">h/dia</td><td class="p-2 border">Entrada [8,16,21]</td><td class="p-2 border">Horas líquidas disponíveis por dia. 8=1 turno, 16=2 turnos, 21=3 turnos descontando refeição/troca (24−3).</td></tr>
+                        <tr><td class="p-2 border font-mono font-bold">DB</td><td class="p-2 border">Demanda</td><td class="p-2 border">t/mês</td><td class="p-2 border">Entrada</td><td class="p-2 border">Demanda base mensal (Cenário 1 Previsto). Cenários 2/3 aplicam variação % sobre ela.</td></tr>
+                        <tr><td class="p-2 border font-mono font-bold">DU</td><td class="p-2 border">Dias Úteis</td><td class="p-2 border">dia/mês</td><td class="p-2 border">Entrada 1–31</td><td class="p-2 border">Dias produtivos no mês para diluir a demanda.</td></tr>
+                        <tr><td class="p-2 border font-mono font-bold">MOa</td><td class="p-2 border">M.O. Atual</td><td class="p-2 border">FTE</td><td class="p-2 border">Entrada</td><td class="p-2 border">Headcount real alocado hoje no recurso.</td></tr>
+                        <tr><td class="p-2 border font-mono font-bold">MOmin</td><td class="p-2 border">M.O. Mín.</td><td class="p-2 border">FTE</td><td class="p-2 border">Entrada</td><td class="p-2 border">Piso físico/segurança/ergonomia. Ex.: ensaque exige 4 op/turno.</td></tr>
+                        <tr><td class="p-2 border font-mono font-bold">VAR</td><td class="p-2 border">Variação</td><td class="p-2 border">%</td><td class="p-2 border">Global</td><td class="p-2 border">0% no C1; varC2 e varC3 configuráveis no topo do Dashboard.</td></tr>
+                        <tr><td class="p-2 border font-mono font-bold">ABS</td><td class="p-2 border">Absenteísmo/Cobertura</td><td class="p-2 border">% (0–30)</td><td class="p-2 border">Global</td><td class="p-2 border">Margem sobre o FTE para faltas, férias e treinamentos. Default 5%. MO final = MO base × (1+ABS).</td></tr>
+                        <tr><td class="p-2 border font-mono font-bold">SETUP</td><td class="p-2 border">Setup Mix</td><td class="p-2 border">h/dia (0–8)</td><td class="p-2 border">Por cenário</td><td class="p-2 border">Perda diária por trocas/limpeza do mix. TUef = TU − SETUP. Default C1 0, C2 0, C3 1.</td></tr>
+                    </tbody>
+                </table></div>
+            </div>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-cogs mr-2 text-blue-600"></i>3. Memorial — Dashboard Operacional (recursos Diretos)</h3>
+                <ol class="list-decimal ml-5 space-y-3 text-sm text-slate-600 dark:text-slate-300">
+                    <li><b>[CR] Cap. Real (t/h) = CN × (EF/100).</b> Potência líquida horária. <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex. Moega: 20 × 0,85 = 17,00 t/h</span>. Se Indireto → N/A.</li>
+                    <li><b>[TUef] Tempo Útil efetivo (h/dia) = TU − SETUP do cenário.</b> Mix pulverizado consome máquina parada. <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex.: TU 16 − setup 1 = 15,0 ef.</span> Travado em ≥0.</li>
+                    <li><b>[CD] Cap. Diária (t/dia) = CR × TUef.</b> <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex.: 17,00 × 8 = 136,0 t/dia</span>.</li>
+                    <li><b>[CM] Cap. Mensal (t/mês) = CD × DU.</b> Item derivado (não exibido em coluna para não poluir, mas usado em auditoria). <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex.: 136,0 × 20 = 2.720 t/mês</span>.</li>
+                    <li><b>[DC] Demanda Cenário (t/mês) = DB × (1+VAR) — exibida na coluna Demanda.</b> VAR=varC2/100 ou varC3/100; C1 VAR=0. <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex. C3 +25%: 2.306 × 1,25 = 2.882,5</span>. Nos cenários 2/3 a célula mostra DC em azul com a base abaixo; editar ou ±100 ajusta a base (DB = DC/(1+VAR)), não só a M.O.</li>
+                    <li><b>[DD] Dem. Diária (t/dia) = DC / DU.</b> <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex. C1: 2.306/20 = 115,3 t/dia</span>. Se DU=0 o sistema trava em 1 para evitar divisão por zero (correção v21).</li>
+                    <li><b>[OC] Ocupação (%) = DD / CD × 100.</b> <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex.: 115,3/136,0×100 = 84,8%</span>. Se CD=0 e DC&gt;0 → <b>ERRO CAP (∞)</b> tratado como gargalo 999,9% e não quebra o app (correção v21). Se CD=0 e DC=0 → 0%.</li>
+                    <li><b>[MOb] M.O. Bruta = MOa × (OC/100).</b> Regra de proporcionalidade: headcount acompanha carga-máquina. <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex.: 2 × 0,848 = 1,70</span>.</li>
+                    <li><b>[MOe] M.O. Calc. final = SE(OC=0 ou inativo;0;MAX(MOb;MOmin) × (1+ABS)).</b> Piso físico primeiro, cobertura depois. <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex.: MAX(1,70;1)×1,05 = 1,79</span>. M.O.I: <code>MAX(MOa;MOmin)×(1+ABS)</code>, constante nos cenários. Tag <i>(Piso Mín)</i> quando o piso prevalece; <i>+x% abs.</i> sempre exibido.</li>
+                    <li><b>Semáforo OC:</b> &lt;85% normal; 85–95% atenção (amarelo); &gt;95% gargalo/tambor (vermelho, Teoria das Restrições – Goldratt). Inativo com demanda&gt;0 = <i>Parado</i>.</li>
+                    <li><b>Hierarquia Mãe→Filha:</b> validação <code>SOMA(DC_filhas) ≤ DC_mãe</code>. No Dashboard o alerta usa <b>DC com variação do cenário ativo</b> (correção v21 – antes usava DB sem variação). Ex.: Mistura 3.295 t vs filhas 988+1.519=2.507 t → OK.</li>
+                    <li><b>Sequência no grupo:</b> botões ↑ ↓ na coluna Ações (Modo Simulação) trocam a ordem apenas dentro do mesmo grupo (mesma mãe / raízes entre si). Não altera cálculos, só a apresentação do fluxo.</li>
+                    <li><b>Cap. Fábrica (seletor):</b> coluna após Ativo, independente do liga/desliga. <code>FÁBRICA = Σ CD dos marcados e ativos</code> (t/dia) e <code>Σ CD×DU</code> (t/mês) no rodapé roxo e no consolidado. Não altera nenhum outro equipamento.</li>
+                </ol>
+                <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (WEF Global Lighthouse, Deloitte Smart Factory): plantas de referência operam com utilização saudável tipicamente em 75–85%, tratam &gt;95% como gargalo/tambor e perseguem OEE classe mundial ≈85% (disponibilidade × performance × qualidade) — calibre EF e o semáforo com o histórico local.</p>
+            </div>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-users mr-2 text-green-600"></i>4. Memorial — Recursos Indiretos (M.O.I) e Totais</h3>
+                <ul class="list-disc ml-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                    <li><b>M.O.I Fixa = MAX(MOa ; MOmin) — VAR NÃO impacta.</b> Regra v21-fix: apoio (ex.: empilhadeira) é estrutura fixa por turno; aumento/redução de volume nos cenários altera só a M.O. direta. <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex. Empilhadeira C1=C2=C3: MAX(4;2)=4</span>.</li>
+                    <li><b>M.O.I Efetiva = MAX(MOa; MOmin), constante nos 3 cenários.</b> Ex.: MAX(4;2)=4.</li>
+                    <li><b>Total M.O. Atual = Σ MOa (ativos).</b> Padronizado v21: usa MOa puro no Dashboard e nos cards (correção – antes o comparativo usava MAX(MOa;MOmin)).</li>
+                    <li><b>Total M.O. Necessária = Σ MOe_direta + Σ MOe_indireta.</b> Exibida como Direta / Indireta no rodapé.</li>
+                    <li><b>Status equipe:</b> DIF = Necessária − Atual. DIF&gt;+0,5 = Déficit (vermelho); DIF&lt;−0,5 = Excesso (amarelo); senão Balanceada (verde). Banda ±0,5 FTE evita ruído de arredondamento.</li>
+                </ul>
+                <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (Deloitte, Gallup): planejamentos maduros usam margem de cobertura para ausências e tratam déficit persistente como gatilho de contratação/realocação — não como hora extra estrutural; a banda ±0,5 FTE evita ruído de arredondamento.</p>
+            </div>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-columns mr-2 text-purple-600"></i>5. Memorial — Cenários Estratégicos (aba 3)</h3>
+                <p class="text-sm text-slate-600 dark:text-slate-300 mb-2">Cada card recalcula o engine completo com sua VAR e seu flag <code>ativoC1/C2/C3</code> (toggle Ativo por cenário). Ou seja, desligar um recurso no C3 não afeta o C1.</p>
+                <ol class="list-decimal ml-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                    <li><b>C1 Previsto:</b> VAR=0. Foto base S&amp;OP.</li>
+                    <li><b>C2 Vol. Médio:</b> VAR=varC2/100 (default −10%). Testa flexibilidade para baixo / férias / manutenção.</li>
+                    <li><b>C3 Pico:</b> VAR=varC3/100 (default +25%). Testa tambor e contratação temporária.</li>
+                    <li><b>Vagas (Δ) = Total Necessário(cenário) − Total Atual(C1).</b> &gt;+0,5 contrata; &lt;−0,5 realoca/ferias; senão equilibrado.</li>
+                    <li><b>Tambor:</b> lista todo Direto ativo com OC&gt;95% naquele cenário, com % exibida. Define o ritmo da fábrica.</li>
+                    <li><b>Restrição hierárquica:</b> mesmo teste do item 3.10, porém por cenário. Alerta vermelho se Filhas&gt;Mãe.</li>
+                </ol>
+                <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (Deloitte S&amp;OP, WEF): empresas maduras rodam 2–3 cenários (base, flex down, pico) com gatilhos de capacidade por cenário — padrão replicado nos cards C1/C2/C3.</p>
+            </div>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2"><i class="fas fa-flask mr-2 text-orange-500"></i>6. Exemplo auditado passo a passo — Moega (Cenário 1, ABS 5%, setup 0)</h3>
+                <div class="font-mono text-xs bg-slate-50 dark:bg-dark-950 p-4 rounded border border-slate-200 dark:border-dark-700 text-slate-700 dark:text-slate-200 leading-relaxed">CN=20 t/h; EF=85%; TU=8 h; SETUP=0 → TUef=8; DB=2.306 t/mês; DU=20; MOa=2; MOmin=1; VAR=0; ABS=5%<br>1) CR = 20×0,85 = <b>17,00 t/h</b><br>2) CD = 17,00×8 = <b>136,0 t/dia</b> | CM = 136,0×20 = <b>2.720 t/mês</b><br>3) DC = 2.306×1,0 = <b>2.306</b> | DD = 2.306/20 = <b>115,30 t/dia</b><br>4) OC = 115,30/136,0×100 = <b>84,8% → normal (&lt;85%)</b><br>5) MOb = 2×0,848 = <b>1,70</b> | MOe = MAX(1,70;1)×1,05 = <b>1,79 FTE</b></div>
+                <p class="text-xs text-slate-500 mt-2">Para auditar outro setor, ative o Modo Simulação, altere um campo e confira: Cap. Real, Cap. Diária, Dem. Diária, Ocupação e M.O. Calc. devem seguir as fórmulas acima com 1 casa decimal.</p>
+            </div>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-user-shield mr-2 text-orange-500"></i>8. Fator de Absenteísmo e Cobertura (Turnover)</h3>
+                <ul class="list-disc ml-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                    <li><b>Conceito:</b> o MOe “na veia” é o exato para operar. Na prática há faltas, férias e treinamentos — sem margem, o S&amp;OP gera hora extra crônica.</li>
+                    <li><b>Fórmula:</b> <code>MO_final = MAX(MOb;MOmin) × (1+ABS)</code> (direta) e <code>MAX(MOa;MOmin) × (1+ABS)</code> (M.O.I). Inativo ou OC=0 → 0.</li>
+                    <li><b>Campo global</b> no topo do Dashboard (0–30%, default 5%). Vale para Dashboard, cards estratégicos, rodapé e CSV. Ex.: base 10,0 FTE com 5% → <b>10,5 FTE</b>.</li>
+                    <li><b>Padronização:</b> usar 5–8% conforme histórico de absenteísmo da unidade; revisar trimestralmente no S&amp;OP.</li>
+                    <li><b>Feristas (ideal):</b> <code>Feristas = ⌈ Total M.O. Necessária (c/ abs.) ÷ 12 ⌉</code>. Um férias por ano diluído em 12 meses → cada 12 FTE regulares exige 1 reserva. O número entra <b>somado</b> no <b>Total M.O. Atual</b> e no <b>Total M.O. Necessária</b> exibidos (rodapé, cards estratégicos e organograma) — o Δ Equipe permanece o gap operacional líquido, pois ambos incluem o mesmo número de feristas. Ex.: base 38,4 FTE → +4 feristas → total exibido 42,4.</li>
+                </ul>
+                <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (Gallup — engajamento × presença; Deloitte Human Capital): unidades industriais costumam provisionar 5–8% de cobertura para faltas, férias e treinamentos — o default 5% é ponto de partida; calibre com o histórico da unidade e revise no S&amp;OP trimestral.</p>
+            </div>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-random mr-2 text-purple-500"></i>9. Fator de Complexidade de Mix (Setups)</h3>
+                <ul class="list-disc ml-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                    <li><b>Conceito:</b> 1.000 t de 1 SKU ≠ 1.000 t de 20 SKUs. Trocas/limpezas param a máquina e derrubam a capacidade útil.</li>
+                    <li><b>Fórmula:</b> <code>TUef = TU − SETUP(cenário)</code>, <code>CD = CR × TUef</code>. SETUP em h/dia por cenário (0–8). Se TUef=0 e há demanda → ERRO CAP.</li>
+                    <li><b>Uso:</b> C3 com mix pulverizado → ex. SETUP C3 = 1h: TU 16 vira 15 ef. A coluna T. Útil exibe o desconto; Cap. Diária e Ocupação já refletem.</li>
+                </ul>
+                <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (WEF Lighthouse, Lean/SMED): referências perseguem trocas de um dígito de minuto e medem a perda por setup separada do OEE — o campo SETUP (h/dia por cenário) replica essa prática de forma simplificada.</p>
+            </div>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-clock mr-2 text-amber-500"></i>10. Sugestão automática de turnos (Balanceamento dinâmico)</h3>
+                <ul class="list-disc ml-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
+                    <li><b>Regra:</b> se <code>OC &gt; 100%</code> (com TUef e setup do cenário), o motor simula o próximo degrau <code>8 → 16 → 21</code> e recalcula <code>OC_next = DD/(CR×TUef_next)</code>.</li>
+                    <li><b>Exibição:</b> painel âmbar sobre a tabela (“Gargalo detectado. Sugestão: abrir 2º turno…”), hint na célula Ocupação e seção por card estratégico. Se já está em 21h: “sem degrau — avaliar 4º turno/hora extra/nova linha”.</li>
+                    <li><b>Aplicação:</b> botões “Aplicar Xh” por recurso ou “Aplicar todos” (exige Modo Simulação). A aplicação altera o TU base; demais equipamentos intactos.</li>
+                </ul>
+                <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (Gallup — burnout/horas extras; Deloitte — custo de turno): ocupação cronicamente acima de 100% eleva custo, absenteísmo e risco — a regra 8→16→21 formaliza o balanceamento dinâmico antes de aprovar overtime estrutural.</p>
+            </div>
+
+            <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm">
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2"><i class="fas fa-exclamation-triangle mr-2 text-yellow-500"></i>7. Premissas, limites e roadmap de padronização</h3>
+                <ul class="list-disc ml-5 space-y-1 text-sm text-slate-600 dark:text-slate-400">
+                    <li><b>Premissas:</b> demanda uniforme em DU; EF constante; TU líquido menos setup; MO direta proporcional à OC com piso e cobertura ABS; <b>M.O.I fixa (não escala com VAR)</b>.</li>
+                    <li><b>Limites conhecidos:</b> EF agregado (sem OEE); ABS único global (sem turnover por função); setup médio por cenário (sem sequência de SKUs); sem t/HH ou R$/t.</li>
+                    <li><b>Roadmap sugerido:</b> (1) OEE; (2) Takt e HH/t; (3) ABS por função; (4) matriz de setup por troca de SKU; (5) trilha de auditoria.</li>
+                    <li class="pt-1 text-xs">Engine v21-abf • Capa com plano de fundo do problema + Menu de navegação • Impressão 2 folhas + Export PDF • ABS + Setup mix + Turno automático + Feristas (MO÷12) • Parque 13 setores • MOI fixa • CSV + JSON + Reset.</li>
+                </ul>
+            </div>
+        </div>
+    </main>
+
+    <!-- Folha de Impressão: Cenários (2 folhas A4) -->
+    <div id="print-sheet" aria-hidden="true"></div>
+
+    <!-- Modal Novo/Editar Setor -->
+    <div id="modal-novo-setor" class="fixed inset-0 bg-slate-900 bg-opacity-60 dark:bg-black dark:bg-opacity-80 hidden justify-center items-center z-50 backdrop-blur-sm transition-opacity">
+        <div class="bg-white dark:bg-dark-900 rounded-xl shadow-xl dark:shadow-2xl w-[500px] p-6 border border-slate-200 dark:border-neon-blue">
+            <h2 id="modal-title" class="text-lg font-bold text-slate-800 dark:text-neon-blue dark:glow-text-blue mb-4 border-b border-slate-200 dark:border-dark-700 pb-2">Adicionar Setor / Recurso</h2>
+            <div class="space-y-4">
+                <div class="grid grid-cols-2 gap-3">
+                    <div class="col-span-2">
+                        <label class="text-xs font-bold text-slate-600 dark:text-slate-400">Nome do Setor / Função</label>
+                        <input type="text" id="new-nome" class="w-full bg-white dark:bg-dark-950 border border-slate-300 dark:border-dark-700 text-slate-800 dark:text-neon-blue rounded px-3 py-2 text-sm uppercase font-bold outline-none focus:border-blue-500 dark:focus:border-neon-blue">
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-xs font-bold text-slate-600 dark:text-slate-400">Tipo de Recurso</label>
+                        <select id="new-tipo" class="w-full bg-white dark:bg-dark-950 border border-slate-300 dark:border-dark-700 text-slate-800 dark:text-slate-200 rounded px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 dark:focus:border-neon-blue" onchange="app.toggleModalFields()">
+                            <option value="Direto">Direto (Máquina)</option>
+                            <option value="Indireto">Indireto (Apoio)</option>
+                        </select>
+                    </div>
+                    <div class="col-span-1">
+                        <label class="text-xs font-bold text-slate-600 dark:text-slate-400">Vincular a (Setor Mãe)</label>
+                        <select id="new-parent" class="w-full bg-white dark:bg-dark-950 border border-slate-300 dark:border-dark-700 text-slate-800 dark:text-slate-200 rounded px-3 py-2 text-sm font-bold outline-none focus:border-blue-500 dark:focus:border-neon-blue">
+                            <option value="">Nenhum (Principal)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div id="modal-fields-direto" class="grid grid-cols-3 gap-3 bg-slate-50 dark:bg-dark-800 p-3 rounded border border-slate-200 dark:border-dark-700">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 dark:text-slate-400">Cap. Nominal</label>
+                        <input type="number" id="new-cap" value="10" step="0.1" class="w-full bg-white dark:bg-dark-950 border border-slate-300 dark:border-dark-700 text-slate-800 dark:text-slate-200 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 dark:text-slate-400">Eficiência (%)</label>
+                        <input type="number" id="new-efi" value="60" step="5" class="w-full bg-white dark:bg-dark-950 border border-slate-300 dark:border-dark-700 text-slate-800 dark:text-slate-200 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 dark:text-slate-400">Demanda (Mês)</label>
+                        <input type="number" id="new-dem" value="1000" step="100" class="w-full bg-white dark:bg-dark-950 border border-slate-300 dark:border-dark-700 text-slate-800 dark:text-slate-200 rounded px-3 py-1.5 text-sm outline-none focus:border-blue-500">
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 gap-3 p-3 bg-orange-50 dark:bg-dark-800 rounded border border-orange-200 dark:border-dark-700">
+                    <div>
+                        <label class="text-xs font-bold text-slate-600 dark:text-slate-400">M.O. Atual (Real)</label>
+                        <input type="number" id="new-mo" value="2" step="1" class="w-full bg-white dark:bg-dark-950 border border-slate-300 dark:border-dark-700 text-slate-800 dark:text-slate-200 rounded px-3 py-2 text-sm outline-none focus:border-orange-500">
+                    </div>
+                    <div>
+                        <label class="text-xs font-bold text-orange-700 dark:text-yellow-400" title="Headcount mínimo exigido por questões físicas/ergonômicas">M.O. Mínima (Piso) <i class="fas fa-info-circle"></i></label>
+                        <input type="number" id="new-mo-min" value="1" step="1" class="w-full bg-white dark:bg-dark-950 border border-orange-300 dark:border-yellow-600 text-orange-800 dark:text-yellow-400 font-bold rounded px-3 py-2 text-sm outline-none focus:border-orange-500">
+                    </div>
+                </div>
+            </div>
+            <div class="mt-6 flex justify-end gap-2">
+                <button onclick="app.closeModal()" class="px-4 py-2 text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:text-white rounded">Cancelar</button>
+                <button id="modal-btn-save" onclick="app.addNewSector()" class="px-4 py-2 bg-blue-600 dark:bg-neon-blue text-white dark:text-dark-950 font-bold rounded shadow-sm dark:shadow-[0_0_10px_rgba(0,243,255,0.4)] hover:bg-blue-700 dark:hover:bg-white transition-colors">Cadastrar</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Engine v21 — memorial sincronizado com aba Base Teórica (tab-2)
+        const ELASTICIDADE_MOI = 1.15; // DEPRECIADA v21-fix: MOI é FIXA, não usa VAR (mantida p/ histórico)
+        const LIMITE_GARGALO = 95, LIMITE_ATENCAO = 85;
+        // MOI FIXA (v21-corrigida): M.O. indireta NÃO escala com VAR. MOe = MAX(MOa;MOmin) se ativo.
+        const MOI_FIXA = true;
+        const DEFAULT_PARK = [
+                    { id: 1, name: 'Moega', tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 1, capNominal: 20, eficiencia: 85, tempoUtil: 8, demandaMensal: 2306, diasUteis: 20, moAtual: 2, obs: '' },
+                    { id: 2, name: 'Premix', tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 1, capNominal: 3, eficiencia: 60, tempoUtil: 16, demandaMensal: 329, diasUteis: 20, moAtual: 2, obs: '' },
+                    { id: 3, name: 'Mistura', tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 1, capNominal: 24, eficiencia: 60, tempoUtil: 16, demandaMensal: 3295, diasUteis: 20, moAtual: 2, obs: '' },
+                    { id: 4, name: 'P125 cv', parentId: 3, tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 1, capNominal: 4.1, eficiencia: 50, tempoUtil: 16, demandaMensal: 667, diasUteis: 20, moAtual: 2, obs: '' },
+                    { id: 5, name: 'Ens P125 cv', parentId: 4, tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 1, capNominal: 4.1, eficiencia: 50, tempoUtil: 16, demandaMensal: 667, diasUteis: 20, moAtual: 2, obs: '' },
+                    { id: 6, name: 'Ens. Farelado', parentId: 3, tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 4, capNominal: 12, eficiencia: 60, tempoUtil: 16, demandaMensal: 988, diasUteis: 20, moAtual: 8, obs: 'Requer 4 op/turno' },
+                    { id: 7, name: 'P150 cv', parentId: 3, tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 1, capNominal: 6.0, eficiencia: 75, tempoUtil: 16, demandaMensal: 1519, diasUteis: 20, moAtual: 2, obs: '' },
+                    { id: 8, name: 'Ens. P150 cv', parentId: 7, tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 3, capNominal: 6.7, eficiencia: 70, tempoUtil: 16, demandaMensal: 1519, diasUteis: 20, moAtual: 8, obs: 'Requer 3 op/turno min' },
+                    { id: 9, name: 'Fardo', tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 1, capNominal: 5.4, eficiencia: 60, tempoUtil: 8, demandaMensal: 257, diasUteis: 20, moAtual: 4, obs: '' },
+                    { id: 10, name: 'Sal', tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 1, capNominal: 1.5, eficiencia: 65, tempoUtil: 8, demandaMensal: 36, diasUteis: 20, moAtual: 2, obs: '' },
+                    { id: 11, name: 'Mix', tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 1, capNominal: 9.6, eficiencia: 60, tempoUtil: 8, demandaMensal: 301, diasUteis: 20, moAtual: 4, obs: '' },
+                    { id: 12, name: 'Expedição', tipo: 'Direto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 3, capNominal: 30, eficiencia: 80, tempoUtil: 8, demandaMensal: 3174, diasUteis: 20, moAtual: 7, obs: '' },
+                    { id: 13, name: 'Op. Empilhadeira', tipo: 'Indireto', ativoC1: true, ativoC2: true, ativoC3: true, moMinima: 2, capNominal: 0, eficiencia: 0, tempoUtil: 8, demandaMensal: 0, diasUteis: 20, moAtual: 4, obs: '' }
+        ];
+        const app = {
+            state: {
+                theme: 'light',
+                isLocked: true,
+                activeScenario: 1,
+                varC2: -10,
+                varC3: 25,
+                absPct: 5,
+                setupC1: 0, setupC2: 0, setupC3: 1,
+                editingId: null,
+                data: JSON.parse(JSON.stringify(DEFAULT_PARK)),
+                nextId: 14
+            },
+
+            init() { 
+                this.loadData();
+                this.applyTheme();
+                this.reorderHierarchy();
+                this.render();
+                this.switchTab(0);
+            },
+
+            toggleTheme() {
+                this.state.theme = this.state.theme === 'dark' ? 'light' : 'dark';
+                this.applyTheme();
+                this.saveData();
+            },
+
+            applyTheme() {
+                if (this.state.theme === 'dark') document.documentElement.classList.add('dark');
+                else document.documentElement.classList.remove('dark');
+            },
+
+            saveData() {
+                const dataToSave = {
+                    theme: this.state.theme,
+                    data: this.state.data,
+                    varC2: this.state.varC2,
+                    varC3: this.state.varC3,
+                    absPct: this.state.absPct,
+                    setupC1: this.state.setupC1, setupC2: this.state.setupC2, setupC3: this.state.setupC3
+                };
+                try { localStorage.setItem('leanSopDashboard_V21', JSON.stringify(dataToSave)); } catch(e){}
+            },
+
+            sanitizeRow(r) {
+                if (r.eficiencia !== undefined) r.eficiencia = Math.min(100, Math.max(0, Number(r.eficiencia)||0));
+                if (r.diasUteis !== undefined) { let d = Number(r.diasUteis)||20; r.diasUteis = Math.min(31, Math.max(1, d)); }
+                if (r.capNominal !== undefined) r.capNominal = Math.max(0, Number(r.capNominal)||0);
+                if (r.demandaMensal !== undefined) r.demandaMensal = Math.max(0, Number(r.demandaMensal)||0);
+                if (r.moAtual !== undefined) r.moAtual = Math.max(0, Math.round(Number(r.moAtual)||0));
+                if (r.moMinima !== undefined) r.moMinima = Math.max(0, Math.round(Number(r.moMinima)||0));
+                if (r.capFabrica === undefined) r.capFabrica = false; else r.capFabrica = !!r.capFabrica;
+                return r;
+            },
+
+            // Seletor Cap. Fábrica: independente do Ativo e dos demais cálculos
+            toggleCapFabrica(id) {
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                row.capFabrica = !row.capFabrica;
+                this.render();
+            },
+
+            // Reordena sequência apenas dentro do mesmo grupo (mesma mãe)
+            moveSector(id, dir) {
+                if (this.state.isLocked) return;
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                const key = row.parentId == null ? '__root__' : String(row.parentId);
+                const sibIds = this.state.data.filter(r => ((r.parentId == null ? '__root__' : String(r.parentId)) === key)).map(r => r.id);
+                const pos = sibIds.indexOf(id);
+                const other = dir === 'up' ? sibIds[pos - 1] : sibIds[pos + 1];
+                if (other === undefined) return;
+                const i1 = this.state.data.findIndex(r => r.id === id);
+                const i2 = this.state.data.findIndex(r => r.id === other);
+                const tmp = this.state.data[i1]; this.state.data[i1] = this.state.data[i2]; this.state.data[i2] = tmp;
+                this.render();
+            },
+
+            // Demanda exibe DC no cenário ativo; edição converte de volta para a base DB
+            setDemandaCenario(id, displayed) {
+                if (this.state.isLocked) return;
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                const v = parseFloat(String(displayed).replace(',', '.'));
+                if (isNaN(v)) return;
+                const f = 1 + this.getVariation();
+                row.demandaMensal = Math.max(0, v / f);
+                this.sanitizeRow(row);
+                this.render();
+            },
+
+            stepDemanda(id, direction) {
+                if (this.state.isLocked) return;
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                const f = 1 + this.getVariation();
+                row.demandaMensal = Math.max(0, row.demandaMensal + (direction === 'up' ? 100 / f : -100 / f));
+                this.sanitizeRow(row);
+                this.render();
+            },
+
+            generateDemandaCell(id, row, variation) {
+                const locked = this.state.isLocked;
+                const f = 1 + variation;
+                const disp = row.demandaMensal * f;
+                const dispTxt = disp >= 100 ? disp.toFixed(0) : (Math.round(disp * 10) / 10);
+                const baseHint = this.state.activeScenario !== 1 ? `<div class="text-[9px] text-slate-400 font-normal leading-none mt-0.5">base ${row.demandaMensal.toFixed(0)}</div>` : '';
+                if (row.tipo === 'Indireto') return `<div class="text-center text-slate-400 dark:text-slate-600 font-medium select-none bg-slate-50 dark:bg-dark-950 py-1 rounded border border-slate-200 dark:border-dark-700 text-xs">N/A</div>`;
+                if (locked) return `<div class="text-center"><div class="text-xs font-bold ${this.state.activeScenario !== 1 ? 'text-blue-700 dark:text-yellow-400' : ''}">${dispTxt}</div>${baseHint}</div>`;
+                return `
+                    <div class="flex items-center justify-between border rounded bg-white dark:bg-dark-950 border-slate-300 dark:border-dark-700 shadow-inner transition-colors p-[1px] w-full ${this.state.activeScenario !== 1 ? 'border-blue-300 dark:border-yellow-600' : ''}" title="Cenário ${this.state.activeScenario}: exibe DC = DB × ${(f).toFixed(2)}. Editar aqui ajusta a base.">
+                        <button onclick="app.stepDemanda(${id}, 'down')" class="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded font-black text-xs text-slate-400 hover:text-blue-600 cursor-pointer">-</button>
+                        <div class="flex-grow flex flex-col justify-center px-1"><input id="input-demandaMensal-${id}" type="text" inputmode="numeric" value="${dispTxt}" class="w-full text-xs text-center font-bold bg-transparent outline-none text-blue-700 dark:text-slate-200 rounded p-0 m-0" oninput="app.setDemandaCenario(${id}, this.value)">${baseHint}</div>
+                        <button onclick="app.stepDemanda(${id}, 'up')" class="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded font-black text-xs text-slate-400 hover:text-blue-600 cursor-pointer">+</button>
+                    </div>`;
+            },
+
+            exportCSV() {
+                const rows = [['Setor','Tipo','Ativo_Cen_Atual','CapFabrica','CapNom_t_h','Ef_%','CapReal_t_h','TUtil_base_h','Setup_h_dia','TUtil_efetivo_h','CapDiaria_t_dia','DemandaBase_t_mes','Var_%','DemCenario_t_mes','DiasUteis','DemDiaria','Ocup_%','MO_Atual','MO_Min','Abs_%','MO_Calc_c_abs','Sugestao_Turno']];
+                const variation = this.getVariation();
+                const absF = this.getAbsFactor();
+                const setup = this.getSetupHours();
+                this.state.data.forEach(r => {
+                    const isAtivo = r[`ativoC${this.state.activeScenario}`];
+                    const dc = r.demandaMensal * (1 + variation);
+                    const cr = r.tipo==='Indireto' ? 0 : r.capNominal * (r.eficiencia/100);
+                    const tuEff = Math.max(0, (Number(r.tempoUtil) || 0) - setup);
+                    const cd = r.tipo==='Indireto' ? 0 : cr * tuEff;
+                    const dd = r.tipo==='Indireto' ? 0 : dc / Math.max(1, r.diasUteis);
+                    const oc = r.tipo==='Indireto' ? 0 : (cd>0 ? dd/cd*100 : (dc>0?Infinity:0));
+                    let moe = 0;
+                    if (isAtivo) {
+                        if (r.tipo==='Indireto') moe = Math.max(r.moAtual, r.moMinima||0) * absF; // MOI FIXA + abs
+                        else moe = oc>0 ? Math.max(r.moAtual*(oc/100), r.moMinima||0) * absF : 0;
+                    }
+                    const sg = (r.tipo !== 'Indireto' && isAtivo) ? this.suggestShift(r, this.state.activeScenario, variation) : null;
+                    const sug = !sg ? '' : (sg.maxed ? 'OC>100 sem degrau: avaliar 4o turno' : `Abrir ${sg.nextBase}h (OC->${isFinite(sg.ocNext)?sg.ocNext.toFixed(0)+'%':'ERRO'})`);
+                    rows.push([r.name, r.tipo, isAtivo?'S':'N', r.capFabrica?'S':'N', r.capNominal, r.eficiencia, cr.toFixed(2), r.tempoUtil, setup, tuEff.toFixed(1), cd.toFixed(1), r.demandaMensal.toFixed(1), (variation*100).toFixed(1), dc.toFixed(1), r.diasUteis, dd.toFixed(2), isFinite(oc)?oc.toFixed(1):'INF', r.moAtual, r.moMinima, this.state.absPct, moe.toFixed(1), sug]);
+                });
+                const csv = rows.map(a=>a.join(';')).join('\n');
+                const blob = new Blob(["\ufeff"+csv], {type:'text/csv;charset=utf-8'});
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sop_capacidade_cenario'+this.state.activeScenario+'.csv'; a.click();
+            },
+
+            resetFactory() {
+                if (!confirm('Restaurar parque completo padrão (13 setores)? Isso apaga simulações salvas.')) return;
+                localStorage.removeItem('leanSopDashboard_V21'); localStorage.removeItem('leanSopDashboard_V2'); location.reload();
+            },
+
+            exportJSON() {
+                const payload = { app:'SOP-Capacidade', version:'v21-abf', exportedAt:new Date().toISOString(), varC2:this.state.varC2, varC3:this.state.varC3, absPct:this.state.absPct, setupC1:this.state.setupC1, setupC2:this.state.setupC2, setupC3:this.state.setupC3, data:this.state.data };
+                const blob = new Blob([JSON.stringify(payload,null,2)], {type:'application/json'});
+                const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'sop_parque_fabril.json'; a.click();
+            },
+
+            importJSON(ev) {
+                const f = ev.target.files && ev.target.files[0]; if (!f) return;
+                const rd = new FileReader();
+                rd.onload = () => {
+                    try {
+                        const obj = JSON.parse(rd.result);
+                        const arr = Array.isArray(obj) ? obj : obj.data;
+                        if (!Array.isArray(arr)) throw new Error('JSON sem lista data');
+                        this.state.data = arr.map(d => this.sanitizeRow({ ativoC1:true, ativoC2:true, ativoC3:true, moMinima:0, ...d }));
+                        if (obj.varC2 !== undefined) this.state.varC2 = obj.varC2;
+                        if (obj.varC3 !== undefined) this.state.varC3 = obj.varC3;
+                        if (obj.absPct !== undefined) this.state.absPct = Math.min(30, Math.max(0, Number(obj.absPct) || 0));
+                        ['setupC1','setupC2','setupC3'].forEach(k => { if (obj[k] !== undefined) this.state[k] = Math.min(8, Math.max(0, Number(obj[k]) || 0)); });
+                        document.getElementById('input-var-c2').value = this.state.varC2;
+                        document.getElementById('input-var-c3').value = this.state.varC3;
+                        document.getElementById('input-abs').value = this.state.absPct;
+                        document.getElementById('input-setup-c1').value = this.state.setupC1;
+                        document.getElementById('input-setup-c2').value = this.state.setupC2;
+                        document.getElementById('input-setup-c3').value = this.state.setupC3;
+                        const maxId = Math.max(...this.state.data.map(d => d.id), 0);
+                        this.state.nextId = maxId + 1;
+                        this.reorderHierarchy(); this.render();
+                        alert('Importados ' + this.state.data.length + ' setores. Use Modo Simulação para editar.');
+                    } catch(e){ alert('Falha ao importar: ' + e.message); }
+                    ev.target.value = '';
+                };
+                rd.readAsText(f);
+            },
+
+            ensureFullPark() {
+                let added = 0;
+                const byId = new Set(this.state.data.map(r => r.id));
+                const byName = new Set(this.state.data.map(r => (r.name||'').toUpperCase()));
+                DEFAULT_PARK.forEach(d => {
+                    if (!byId.has(d.id) && !byName.has(d.name.toUpperCase())) {
+                        this.state.data.push(JSON.parse(JSON.stringify(d))); added++;
+                    }
+                });
+                if (added > 0) {
+                    const maxId = Math.max(...this.state.data.map(d => d.id), 0);
+                    this.state.nextId = maxId + 1;
+                    this.reorderHierarchy();
+                }
+                return added;
+            },
+
+            loadData() {
+                const saved = localStorage.getItem('leanSopDashboard_V21') || localStorage.getItem('leanSopDashboard_V2');
+                if (saved) {
+                    try {
+                        const parsed = JSON.parse(saved);
+                        if (parsed.theme) this.state.theme = parsed.theme;
+                        if (parsed.data) {
+                            this.state.data = parsed.data.map(d => ({
+                                ...d,
+                                ativoC1: d.ativoC1 !== undefined ? d.ativoC1 : true,
+                                ativoC2: d.ativoC2 !== undefined ? d.ativoC2 : true,
+                                ativoC3: d.ativoC3 !== undefined ? d.ativoC3 : true,
+                                capFabrica: d.capFabrica !== undefined ? !!d.capFabrica : false,
+                                moMinima: d.moMinima !== undefined ? d.moMinima : (d.roundUp ? 1 : 0)
+                            }).map(r => this.sanitizeRow(r)));
+                        }
+                        if (parsed.varC2 !== undefined) this.state.varC2 = parsed.varC2;
+                        if (parsed.varC3 !== undefined) this.state.varC3 = parsed.varC3;
+                        if (parsed.absPct !== undefined) this.state.absPct = Math.min(30, Math.max(0, Number(parsed.absPct) || 0));
+                        ['setupC1','setupC2','setupC3'].forEach(k => { if (parsed[k] !== undefined) this.state[k] = Math.min(8, Math.max(0, Number(parsed[k]) || 0)); });
+                        
+                        document.getElementById('input-var-c2').value = this.state.varC2;
+                        document.getElementById('input-var-c3').value = this.state.varC3;
+                        document.getElementById('input-abs').value = this.state.absPct;
+                        document.getElementById('input-setup-c1').value = this.state.setupC1;
+                        document.getElementById('input-setup-c2').value = this.state.setupC2;
+                        document.getElementById('input-setup-c3').value = this.state.setupC3;
+                        
+                        const maxId = Math.max(...this.state.data.map(d => d.id));
+                        this.state.nextId = (maxId > 0 ? maxId : 0) + 1;
+                    } catch(e) { console.error('Erro ao carregar dados', e); }
+                }
+                // Restaura setores faltantes sem apagar customizações (ex.: P125, Fardo, Sal, Mix)
+                try { if (this.ensureFullPark()) this.saveData(); } catch(e){}
+                try { this.state.data = this.state.data.map(r => this.sanitizeRow(r)); } catch(e){}
+            },
+
+            // NOVA FUNÇÃO: Ordenação Hierárquica Recursiva
+            reorderHierarchy() {
+                const sorted = [];
+                const processed = new Set();
+                
+                const processNode = (nodeId) => {
+                    if (processed.has(nodeId)) return;
+                    const node = this.state.data.find(n => n.id === nodeId);
+                    if (node) {
+                        sorted.push(node);
+                        processed.add(nodeId);
+                        // Buscar recursivamente todas as "filhas" que apontam para esta "mãe"
+                        const children = this.state.data.filter(n => n.parentId === nodeId);
+                        children.forEach(c => processNode(c.id));
+                    }
+                };
+
+                // Passo 1: Encontrar todos os "Setores Principais" (Sem mãe, ou cuja mãe não existe mais)
+                const roots = this.state.data.filter(n => !n.parentId || !this.state.data.some(p => p.id === n.parentId));
+                roots.forEach(r => processNode(r.id));
+
+                // Passo 2: Garantir que ninguém ficou de fora (caso haja algum loop de ID ou erro de dados)
+                this.state.data.forEach(n => {
+                    if (!processed.has(n.id)) processNode(n.id);
+                });
+
+                // Atualizar o array original para o array ordenado
+                this.state.data = sorted;
+            },
+
+            switchTab(tabId) {
+                document.getElementById('tab-0').classList.toggle('hidden', tabId !== 0);
+                document.getElementById('tab-1').classList.toggle('hidden', tabId !== 1);
+                document.getElementById('tab-2').classList.toggle('hidden', tabId !== 2);
+                document.getElementById('tab-3').classList.toggle('hidden', tabId !== 3);
+                document.getElementById('tab-4').classList.toggle('hidden', tabId !== 4);
+                
+                const classesActive = "px-4 py-2 rounded-t-lg bg-slate-100 dark:bg-dark-950 text-blue-700 dark:text-neon-blue font-bold border-t border-x border-slate-300 dark:border-neon-blue transition-colors dark:glow-text-blue";
+                const classesInactive = "px-4 py-2 rounded-t-lg bg-white dark:bg-dark-800 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-neon-blue font-medium border-t border-x border-transparent transition-colors cursor-pointer";
+                
+                document.getElementById('tab-btn-0').className = tabId === 0 ? classesActive.replace('text-blue-700','text-indigo-700').replace('dark:text-neon-blue','dark:text-indigo-300').replace('dark:border-neon-blue','dark:border-indigo-400') : classesInactive;
+                document.getElementById('tab-btn-1').className = tabId === 1 ? classesActive : classesInactive;
+                document.getElementById('tab-btn-3').className = tabId === 3 ? classesActive : classesInactive;
+                document.getElementById('tab-btn-4').className = tabId === 4 ? classesActive.replace('text-blue-700','text-purple-700').replace('dark:text-neon-blue','dark:text-purple-300').replace('dark:border-neon-blue','dark:border-purple-500') : classesInactive;
+                document.getElementById('tab-btn-2').className = tabId === 2 ? classesActive.replace('text-blue-700','text-green-700').replace('dark:text-neon-blue','dark:text-neon-green').replace('dark:border-neon-blue','dark:border-neon-green') : classesInactive;
+            },
+
+            toggleLock() {
+                this.state.isLocked = !this.state.isLocked;
+                const btn = document.getElementById('btn-lock');
+                const btnAdd = document.getElementById('add-sector-container');
+                const inputsVar = document.querySelectorAll('#tab-1 input[type="number"]');
+
+                if (this.state.isLocked) {
+                    btn.className = "flex items-center gap-2 px-4 py-2 rounded font-bold transition-all duration-200 bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 dark:bg-dark-800 dark:border-neon-green dark:text-neon-green dark:shadow-[0_0_8px_rgba(57,255,20,0.3)] dark:hover:bg-neon-green dark:hover:text-dark-950";
+                    document.getElementById('icon-lock').className = "fas fa-lock";
+                    document.getElementById('text-lock').innerText = "Edição Travada";
+                    btnAdd.classList.add('hidden');
+                    inputsVar.forEach(el => el.disabled = true);
+                } else {
+                    btn.className = "flex items-center gap-2 px-4 py-2 rounded font-bold transition-all duration-200 bg-red-100 text-red-700 border border-red-300 hover:bg-red-200 dark:bg-neon-alert dark:text-white dark:shadow-[0_0_10px_rgba(255,0,60,0.5)] dark:border-neon-alert dark:hover:bg-red-600";
+                    document.getElementById('icon-lock').className = "fas fa-lock-open";
+                    document.getElementById('text-lock').innerText = "Modo Simulação";
+                    btnAdd.classList.remove('hidden');
+                    inputsVar.forEach(el => el.disabled = false);
+                }
+                this.render();
+            },
+
+            setScenario(num) {
+                this.state.activeScenario = num;
+                [1, 2, 3].forEach(i => {
+                    const btn = document.getElementById(`btn-cenario-${i}`);
+                    if (i === num) btn.className = "px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 bg-white dark:bg-dark-800 text-blue-700 dark:text-neon-blue shadow-sm dark:border dark:border-neon-blue dark:shadow-[0_0_5px_rgba(0,243,255,0.2)]";
+                    else btn.className = "px-4 py-2 rounded-md font-semibold text-sm transition-all duration-200 text-slate-500 dark:text-slate-400 hover:text-blue-600 dark:hover:text-neon-blue";
+                });
+                this.render();
+            },
+
+            updateGlobalVars() {
+                this.state.varC2 = parseFloat(document.getElementById('input-var-c2').value) || 0;
+                this.state.varC3 = parseFloat(document.getElementById('input-var-c3').value) || 0;
+                let a = parseFloat(document.getElementById('input-abs').value);
+                this.state.absPct = isNaN(a) ? 0 : Math.min(30, Math.max(0, a));
+                ['setupC1','setupC2','setupC3'].forEach((k, i) => {
+                    const el = document.getElementById('input-setup-c' + (i+1));
+                    let s = el ? parseFloat(el.value) : 0;
+                    this.state[k] = isNaN(s) ? 0 : Math.min(8, Math.max(0, s));
+                });
+                this.render();
+            },
+
+            getSetupHours(scenarioNum) {
+                const n = scenarioNum || this.state.activeScenario;
+                if (n === 2) return this.state.setupC2 || 0;
+                if (n === 3) return this.state.setupC3 || 0;
+                return this.state.setupC1 || 0;
+            },
+
+            getAbsFactor() { return 1 + (Number(this.state.absPct) || 0) / 100; },
+
+            effTU(baseTU, scenarioNum) { return Math.max(0, (Number(baseTU) || 0) - this.getSetupHours(scenarioNum)); },
+
+            nextTU(baseTU) {
+                const steps = [8, 16, 21];
+                for (let s of steps) if (s > (Number(baseTU) || 0)) return s;
+                return null;
+            },
+
+            shiftLabel(tu) { return tu === 8 ? '1º turno (8h)' : tu === 16 ? '2º turno (16h)' : tu === 21 ? '3º turno (21h)' : tu + 'h'; },
+
+            // Simula próximo degrau de turno para OC>100%: retorna {nextBase, effNext, ocNext} ou {maxed:true}
+            suggestShift(row, scenarioNum, variation) {
+                if (!row || row.tipo === 'Indireto') return null;
+                const setup = this.getSetupHours(scenarioNum);
+                const cr = row.capNominal * (row.eficiencia / 100);
+                if (!(cr > 0)) return null;
+                const dc = row.demandaMensal * (1 + variation);
+                const dias = Math.max(1, row.diasUteis || 1);
+                const dd = dc / dias;
+                const tuEff = Math.max(0, (Number(row.tempoUtil) || 0) - setup);
+                const cd = cr * tuEff;
+                const oc = cd > 0 ? (dd / cd) * 100 : (dc > 0 ? Infinity : 0);
+                if (!(oc > 100)) return null;
+                const nx = this.nextTU(row.tempoUtil);
+                if (nx === null) return { maxed: true, oc };
+                const effNx = Math.max(0, nx - setup);
+                const cdNx = cr * effNx;
+                const ocNx = cdNx > 0 ? (dd / cdNx) * 100 : Infinity;
+                return { nextBase: nx, effNext: effNx, oc, ocNext: ocNx, resolves: ocNx <= 100 };
+            },
+
+            applyOneShift(id) {
+                if (this.state.isLocked) { alert('Ative o Modo Simulação para aplicar turnos.'); return; }
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                const s = this.suggestShift(row, this.state.activeScenario, this.getVariation());
+                if (s && s.nextBase) { row.tempoUtil = s.nextBase; this.render(); }
+            },
+
+            applySuggestedShifts() {
+                if (this.state.isLocked) { alert('Ative o Modo Simulação para aplicar turnos.'); return; }
+                const variation = this.getVariation();
+                let n = 0;
+                this.state.data.forEach(row => {
+                    if (row.tipo === 'Indireto' || !row[`ativoC${this.state.activeScenario}`]) return;
+                    const s = this.suggestShift(row, this.state.activeScenario, variation);
+                    if (s && s.nextBase) { row.tempoUtil = s.nextBase; n++; }
+                });
+                if (n === 0) alert('Nenhum gargalo >100% com degrau de turno disponível neste cenário.');
+                this.render();
+            },
+
+            getVariation() {
+                if (this.state.activeScenario === 2) return this.state.varC2 / 100;
+                if (this.state.activeScenario === 3) return this.state.varC3 / 100;
+                return 0;
+            },
+
+            toggleAtivo(id) {
+                if (this.state.isLocked) return;
+                const row = this.state.data.find(r => r.id === id);
+                if (row) row[`ativoC${this.state.activeScenario}`] = !row[`ativoC${this.state.activeScenario}`];
+                this.render();
+            },
+
+            updateValue(id, field, direction) {
+                if (this.state.isLocked) return;
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+
+                let val = row[field];
+                let step = 1, min = 0, max = Infinity;
+
+                if (field === 'capNominal') { step = 0.1; }
+                if (field === 'eficiencia') { step = 5; max = 100; }
+                if (field === 'demandaMensal') { step = 100; }
+                if (field === 'diasUteis') { step = 1; min = 1; max = 31; }
+                if (field === 'moAtual' || field === 'moMinima') { step = 1; }
+
+                if (direction === 'up') val += step;
+                if (direction === 'down') val -= step;
+
+                val = Math.round(val * 10) / 10;
+                if (val < min) val = min;
+                if (val > max) val = max;
+
+                row[field] = val;
+                this.sanitizeRow(row);
+                this.render();
+            },
+
+            setValue(id, field, value) {
+                if (this.state.isLocked) return;
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                let val = parseFloat(String(value).replace(',', '.'));
+                if (isNaN(val)) val = 0;
+                row[field] = val;
+                this.sanitizeRow(row);
+                this.render();
+            },
+
+            setObs(id, value) {
+                const row = this.state.data.find(r => r.id === id);
+                if (row) {
+                    row.obs = value;
+                    this.saveData();
+                }
+            },
+
+            cycleTempoUtil(id) {
+                if (this.state.isLocked) return;
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                const times = [8, 16, 21];
+                let nextIdx = (times.indexOf(row.tempoUtil) + 1) % times.length;
+                row.tempoUtil = times[nextIdx];
+                this.render();
+            },
+
+            openModal() { 
+                this.state.editingId = null;
+                document.getElementById('modal-title').innerText = "Adicionar Setor / Recurso";
+                document.getElementById('modal-btn-save').innerText = "Cadastrar";
+                
+                document.getElementById('new-nome').value = '';
+                document.getElementById('new-tipo').value = 'Direto';
+                document.getElementById('new-cap').value = '10';
+                document.getElementById('new-efi').value = '60';
+                document.getElementById('new-dem').value = '1000';
+                document.getElementById('new-mo').value = '2';
+                document.getElementById('new-mo-min').value = '1';
+                
+                const select = document.getElementById('new-parent');
+                select.innerHTML = '<option value="">Nenhum (Principal)</option>';
+                this.state.data.forEach(row => {
+                    const opt = document.createElement('option');
+                    opt.value = row.id; opt.textContent = row.name;
+                    select.appendChild(opt);
+                });
+                select.value = '';
+                
+                this.toggleModalFields();
+                document.getElementById('modal-novo-setor').classList.replace('hidden', 'flex'); 
+            },
+            
+            closeModal() { document.getElementById('modal-novo-setor').classList.replace('flex', 'hidden'); },
+            
+            toggleModalFields() {
+                const tipo = document.getElementById('new-tipo').value;
+                document.getElementById('modal-fields-direto').style.display = tipo === 'Direto' ? 'grid' : 'none';
+            },
+
+            editSector(id) {
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                
+                this.state.editingId = id;
+                document.getElementById('modal-title').innerText = "Editar Setor / Recurso";
+                document.getElementById('modal-btn-save').innerText = "Salvar Alterações";
+                
+                document.getElementById('new-nome').value = row.name;
+                document.getElementById('new-tipo').value = row.tipo;
+                document.getElementById('new-cap').value = row.capNominal;
+                document.getElementById('new-efi').value = row.eficiencia;
+                document.getElementById('new-dem').value = row.demandaMensal;
+                document.getElementById('new-mo').value = row.moAtual;
+                document.getElementById('new-mo-min').value = row.moMinima;
+                
+                const select = document.getElementById('new-parent');
+                select.innerHTML = '<option value="">Nenhum (Principal)</option>';
+                this.state.data.forEach(r => {
+                    if(r.id !== id) {
+                        const opt = document.createElement('option');
+                        opt.value = r.id; opt.textContent = r.name;
+                        select.appendChild(opt);
+                    }
+                });
+                select.value = row.parentId || '';
+                
+                this.toggleModalFields();
+                document.getElementById('modal-novo-setor').classList.replace('hidden', 'flex');
+            },
+
+            deleteSector(id) {
+                if(confirm("Tem certeza que deseja excluir este equipamento? (Itens vinculados a ele se tornarão setores principais)")) {
+                    this.state.data = this.state.data.filter(r => r.id !== id);
+                    this.reorderHierarchy(); // Chama a ordenação para subir os filhos de nível se a mãe for excluída
+                    this.render();
+                }
+            },
+            
+            addNewSector() {
+                const nome = document.getElementById('new-nome').value.trim() || 'NOVO SETOR';
+                const tipo = document.getElementById('new-tipo').value;
+                const cap = parseFloat(document.getElementById('new-cap').value) || 0;
+                const efi = parseFloat(document.getElementById('new-efi').value) || 0;
+                const dem = parseFloat(document.getElementById('new-dem').value) || 0;
+                const mo = parseInt(document.getElementById('new-mo').value) || 1;
+                const moMin = parseInt(document.getElementById('new-mo-min').value) || 0;
+                const parentId = document.getElementById('new-parent').value ? parseInt(document.getElementById('new-parent').value) : undefined;
+
+                if (this.state.editingId) {
+                    const row = this.state.data.find(r => r.id === this.state.editingId);
+                    if (row) {
+                        row.name = nome.toUpperCase(); row.tipo = tipo; row.capNominal = cap;
+                        row.eficiencia = efi; row.demandaMensal = dem; row.moAtual = mo; row.moMinima = moMin;
+                        if (parentId) row.parentId = parentId; else delete row.parentId;
+                    }
+                } else {
+                    const newItem = {
+                        id: this.state.nextId++, name: nome.toUpperCase(), tipo: tipo,
+                        ativoC1: true, ativoC2: true, ativoC3: true, moMinima: moMin,
+                        capNominal: cap, eficiencia: efi, tempoUtil: 8, demandaMensal: dem, diasUteis: 20, moAtual: mo, obs: ''
+                    };
+                    if (parentId) newItem.parentId = parentId;
+                    this.state.data.push(newItem);
+                }
+                
+                // Recalcula a ordem visual logo após salvar ou criar
+                this.reorderHierarchy(); 
+                this.closeModal();
+                this.render();
+            },
+
+            generateControlCell(id, field, value, type, isInput = false, customColor = '') {
+                const locked = this.state.isLocked;
+                if (type === 'Indireto' && field !== 'moAtual' && field !== 'moMinima' && field !== 'diasUteis') {
+                    return `<div class="text-center text-slate-400 dark:text-slate-600 font-medium select-none bg-slate-50 dark:bg-dark-950 py-1 rounded border border-slate-200 dark:border-dark-700 text-xs">N/A</div>`;
+                }
+
+                const btnClass = locked 
+                    ? 'opacity-0 cursor-default pointer-events-none' 
+                    : 'text-slate-400 hover:text-blue-600 dark:hover:text-neon-blue hover:bg-slate-100 dark:hover:bg-dark-800 cursor-pointer';
+                
+                let containerClass = locked 
+                    ? 'bg-transparent border-transparent text-slate-700 dark:text-slate-300' 
+                    : 'bg-white dark:bg-dark-950 border-slate-300 dark:border-dark-700 shadow-inner text-slate-800 dark:text-slate-200';
+                
+                if(!locked && customColor === 'orange') containerClass = 'bg-orange-50 dark:bg-dark-900 border-orange-300 dark:border-yellow-600 shadow-inner text-orange-800 dark:text-yellow-400';
+
+                let displayContent;
+                if (isInput) {
+                    displayContent = `<input id="input-${field}-${id}" type="text" inputmode="numeric" value="${value}" 
+                        class="w-full text-xs text-center font-bold bg-transparent outline-none ${locked ? 'pointer-events-none text-slate-600 dark:text-slate-400' : 'text-blue-700 dark:text-slate-200 focus:text-blue-800 dark:focus:text-neon-blue'} rounded p-0 m-0"
+                        oninput="app.setValue(${id}, '${field}', this.value)" ${locked ? 'readonly' : ''}>`;
+                } else {
+                    let textCol = locked ? '' : (customColor === 'orange' ? 'text-orange-700 dark:text-yellow-400' : 'text-blue-700 dark:text-neon-blue');
+                    displayContent = `<span class="text-xs font-bold text-center select-none w-full ${textCol}">${field === 'eficiencia' ? `${value}%` : value}</span>`;
+                }
+
+                return `
+                    <div class="flex items-center justify-between border rounded ${containerClass} transition-colors p-[1px] btn-control w-full">
+                        <button onclick="app.updateValue(${id}, '${field}', 'down')" class="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded font-black text-xs ${btnClass}">-</button>
+                        <div class="flex-grow flex justify-center px-1">${displayContent}</div>
+                        <button onclick="app.updateValue(${id}, '${field}', 'up')" class="w-5 h-5 flex-shrink-0 flex items-center justify-center rounded font-black text-xs ${btnClass}">+</button>
+                    </div>
+                `;
+            },
+
+            generateCycleButton(id, value, type) {
+                if (type === 'Indireto') return `<div class="text-center text-slate-400 dark:text-slate-600 font-medium select-none bg-slate-50 dark:bg-dark-950 py-1 rounded border border-slate-200 dark:border-dark-700 text-xs">N/A</div>`;
+                const locked = this.state.isLocked;
+                const btnClass = locked 
+                    ? 'bg-transparent border-transparent text-slate-600 dark:text-slate-400 cursor-default pointer-events-none' 
+                    : 'bg-white dark:bg-dark-950 border-slate-300 dark:border-dark-700 text-blue-700 dark:text-neon-blue hover:border-blue-400 dark:hover:border-neon-blue hover:bg-slate-50 dark:hover:bg-dark-800 cursor-pointer dark:shadow-[0_0_5px_rgba(0,243,255,0.1)]';
+                return `<button onclick="app.cycleTempoUtil(${id})" class="w-full border rounded py-0.5 px-1.5 font-bold text-xs text-center transition-colors btn-control ${btnClass}">${value}h ${!locked ? '<i class="fas fa-sync-alt text-[9px] ml-1 text-slate-400 dark:text-slate-500"></i>' : ''}</button>`;
+            },
+
+            calculateScenarioState(variation, scenarioNum) {
+                let moDir = 0, moInd = 0;
+                let gargalos = [], validacoes = [], sugestoes = [];
+                const absF = 1 + (Number(this.state.absPct) || 0) / 100;
+                const setup = this.getSetupHours(scenarioNum);
+
+                this.state.data.forEach(row => {
+                    const isAtivo = row[`ativoC${scenarioNum}`];
+                    if (!isAtivo) return;
+                    
+                    let demandaCenario = row.demandaMensal * (1 + variation);
+                    let filhasDiretas = this.state.data.filter(r => r.parentId === row.id && r[`ativoC${scenarioNum}`]);
+                    if (filhasDiretas.length > 0) {
+                        let demandaFilhas = filhasDiretas.reduce((sum, f) => sum + (f.demandaMensal * (1 + variation)), 0);
+                        validacoes.push({ nome: row.name, demPropria: demandaCenario, demFilhas: demandaFilhas, alerta: demandaFilhas > demandaCenario });
+                    }
+                    
+                    if (row.tipo === 'Indireto') {
+                        // MOI FIXA v21-fix + cobertura de absenteísmo
+                        moInd += Math.max(row.moAtual, row.moMinima || 0) * absF;
+                    } else {
+                        let capReal = row.capNominal * (row.eficiencia / 100);
+                        let tuEff = Math.max(0, (Number(row.tempoUtil) || 0) - setup);
+                        let capDiaria = capReal * tuEff;
+                        let dias = Math.max(1, row.diasUteis || 1);
+                        let demDiaria = demandaCenario / dias;
+                        let ocupacao = capDiaria > 0 ? (demDiaria / capDiaria) * 100 : (demandaCenario > 0 ? Infinity : 0);
+                        
+                        let calcBruto = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : row.moAtual;
+                        if (!isFinite(ocupacao) && demandaCenario > 0) calcBruto = Math.max(row.moAtual, row.moMinima || 0);
+                        moDir += (ocupacao > 0) ? Math.max(calcBruto, row.moMinima || 0) * absF : 0;
+
+                        if (ocupacao > LIMITE_GARGALO) gargalos.push({ name: row.name, oc: ocupacao });
+                        const sg = this.suggestShift(row, scenarioNum, variation);
+                        if (sg) sugestoes.push({ name: row.name, id: row.id, ...sg });
+                    }
+                });
+
+                return { total: moDir + moInd, moDir, moInd, gargalos, validacoes, sugestoes, absF, setup };
+            },
+
+            renderComparativo() {
+                const varC1 = 0, varC2 = this.state.varC2 / 100, varC3 = this.state.varC3 / 100;
+                const stC1 = this.calculateScenarioState(varC1, 1), stC2 = this.calculateScenarioState(varC2, 2), stC3 = this.calculateScenarioState(varC3, 3);
+                let moAtualTotal = this.state.data.reduce((acc, r) => acc + (r.ativoC1 ? r.moAtual : 0), 0);
+                
+                const generateCard = (title, variationLabel, state, bgHeader, borderCol) => {
+                    const diff = state.total - moAtualTotal;
+                    const ferCard = Math.ceil(state.total / 12);
+                    const totalExib = state.total + ferCard;
+                    let diffHtml = diff > 0.5 ? `<span class="text-red-700 dark:text-neon-alert font-bold bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded text-sm border border-red-200 dark:border-red-500"><i class="fas fa-arrow-up"></i> ${diff.toFixed(1)} vagas</span>`
+                                 : diff < -0.5 ? `<span class="text-yellow-700 dark:text-yellow-400 font-bold bg-yellow-100 dark:bg-yellow-900/40 px-2 py-1 rounded text-sm border border-yellow-200 dark:border-yellow-500"><i class="fas fa-arrow-down"></i> ${Math.abs(diff).toFixed(1)} vagas</span>`
+                                 : `<span class="text-green-700 dark:text-neon-green font-bold bg-green-100 dark:bg-green-900/40 px-2 py-1 rounded text-sm border border-green-200 dark:border-green-500"><i class="fas fa-check"></i> Equilibrado</span>`;
+
+                    let gargalosHtml = state.gargalos.length === 0 ? `<p class="text-sm text-slate-500 italic mt-2">Sem gargalos.</p>` : `<ul class="mt-2 space-y-1">` + state.gargalos.map(g => `<li class="text-xs font-bold text-red-600 dark:text-neon-alert flex justify-between"><span>${this.esc(g.name)}</span> <span>${!isFinite(g.oc) ? 'ERRO CAP' : g.oc.toFixed(1) + '%'}</span></li>`).join('') + `</ul>`;
+                    let validacoesHtml = '';
+                    state.validacoes.forEach(v => {
+                        validacoesHtml += `<div class="border-b pb-2 mb-2 border-slate-100 dark:border-dark-700 last:border-0 last:mb-0 last:pb-0"><p class="text-[10px] uppercase font-bold text-slate-500 mb-1"><i class="fas fa-sitemap mr-1"></i> Restrição: ${this.esc(v.nome)}</p><div class="flex justify-between items-center text-xs font-bold px-2 py-1 rounded ${v.alerta ? 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-neon-alert border border-red-200 dark:border-red-500/50' : 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-neon-green border border-green-200 dark:border-green-500/50'}"><span>Filhas: ${v.demFilhas.toFixed(0)}t</span>${v.alerta ? '<i class="fas fa-greater-than text-[10px]"></i>' : '<i class="fas fa-less-than-equal text-[10px]"></i>'}<span>Mãe: ${v.demPropria.toFixed(0)}t</span></div></div>`;
+                    });
+
+                    let sugHtml = '';
+                    if (state.sugestoes && state.sugestoes.length > 0) {
+                        sugHtml = `<ul class="mt-2 space-y-1">` + state.sugestoes.map(s => {
+                            const txt = s.maxed ? 'sem degrau — avaliar 4º turno/nova linha' : `→ ${s.nextBase}h: ${isFinite(s.ocNext) ? s.ocNext.toFixed(1) + '%' : 'ERRO'}${s.resolves ? ' ✓' : ''}`;
+                            return `<li class="text-xs font-bold text-amber-700 dark:text-yellow-400 flex justify-between gap-2"><span><i class="fas fa-clock mr-1"></i>${this.esc(s.name)} (${isFinite(s.oc) ? s.oc.toFixed(0) : '∞'}%)</span><span class="text-right">${txt}</span></li>`;
+                        }).join('') + `</ul>`;
+                    } else {
+                        sugHtml = `<p class="text-sm text-slate-500 italic mt-2">Sem necessidade de turno extra (nenhum OC&gt;100%).</p>`;
+                    }
+
+                    return `<div class="bg-white dark:bg-dark-900 rounded-xl shadow-sm dark:shadow-lg border border-slate-200 dark:border-dark-700 overflow-hidden flex flex-col"><div class="${bgHeader} p-4 border-b ${borderCol}"><h3 class="font-bold text-lg text-slate-800 dark:text-white">${title}</h3><p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">${variationLabel}</p></div><div class="p-5 flex-grow flex flex-col gap-4"><div class="flex justify-between items-end border-b pb-3 border-slate-100 dark:border-dark-700"><div><p class="text-xs uppercase font-bold text-slate-500">Total Necessário (c/ abs.)</p><p class="text-3xl font-black text-slate-700 dark:text-slate-200">${totalExib.toFixed(1)}</p><p class="text-[11px] font-bold text-amber-600 dark:text-amber-300 mt-0.5">incl. +${ferCard} feristas</p></div><div class="pb-1">${diffHtml}</div></div><div class="grid grid-cols-2 gap-2 text-sm border-b pb-3 border-slate-100 dark:border-dark-700"><div class="bg-slate-50 dark:bg-dark-950 p-2 rounded text-center border border-slate-100 dark:border-dark-700"><p class="text-[10px] uppercase font-bold text-slate-500">M.O. Direta</p><p class="font-bold text-blue-600 dark:text-neon-blue">${state.moDir.toFixed(1)}</p></div><div class="bg-slate-50 dark:bg-dark-950 p-2 rounded text-center border border-slate-100 dark:border-dark-700"><p class="text-[10px] uppercase font-bold text-slate-500">M.O. Indireta</p><p class="font-bold text-green-600 dark:text-neon-green">${state.moInd.toFixed(1)}</p></div></div>${validacoesHtml ? `<div class="border-b pb-3 border-slate-100 dark:border-dark-700 flex flex-col">${validacoesHtml}</div>` : ''}<div><p class="text-xs uppercase font-bold text-slate-500 dark:text-slate-400 mb-1"><i class="fas fa-fire mr-1 text-red-500 dark:text-neon-alert"></i> Tambor (Gargalos >95%)</p>${gargalosHtml}</div><div><p class="text-xs uppercase font-bold text-slate-500 dark:text-slate-400 mb-1"><i class="fas fa-clock mr-1 text-amber-500"></i> Sugestão de turnos (OC&gt;100%)</p>${sugHtml}</div></div></div>`;
+                };
+
+                const lbl = (v, s, c) => `Demanda: ${v > 0 ? '+' : ''}${v}% • Setup: ${s}h/dia • Abs: ${this.state.absPct}%${c ? ' • ' + c : ''}`;
+                document.getElementById('comparativo-container').innerHTML = `
+                    ${generateCard('Cenário 1: Previsto', lbl(0, this.state.setupC1), stC1, 'bg-slate-50 dark:bg-dark-800', 'border-slate-200 dark:border-dark-700')}
+                    ${generateCard('Cenário 2: Médio', lbl(this.state.varC2, this.state.setupC2), stC2, 'bg-blue-50 dark:bg-dark-800', 'border-blue-200 dark:border-neon-blue')}
+                    ${generateCard('Cenário 3: Pico', lbl(this.state.varC3, this.state.setupC3), stC3, 'bg-orange-50 dark:bg-dark-800', 'border-orange-200 dark:border-yellow-500')}
+                `;
+            },
+
+            rowMetrics(row, scenarioNum, variation) {
+                const absF = this.getAbsFactor();
+                const setup = this.getSetupHours(scenarioNum);
+                const isAtivo = row[`ativoC${scenarioNum}`];
+                const isIndireto = row.tipo === 'Indireto';
+                const m = { isAtivo, isIndireto, capReal: 0, capDiaria: 0, demDiaria: 0, ocupacao: 0, mob: 0, moe: 0, usouPiso: false };
+                if (!isAtivo) return m;
+                if (isIndireto) {
+                    m.mob = row.moAtual;
+                    m.moe = Math.max(row.moAtual, row.moMinima || 0) * absF;
+                    m.usouPiso = (row.moMinima || 0) > 0 && row.moAtual < (row.moMinima || 0);
+                    return m;
+                }
+                m.capReal = row.capNominal * (row.eficiencia / 100);
+                m.capDiaria = m.capReal * Math.max(0, (Number(row.tempoUtil) || 0) - setup);
+                m.demDiaria = (row.demandaMensal * (1 + variation)) / Math.max(1, row.diasUteis || 1);
+                m.ocupacao = m.capDiaria > 0 ? (m.demDiaria / m.capDiaria) * 100 : (row.demandaMensal > 0 ? Infinity : 0);
+                if (isFinite(m.ocupacao)) {
+                    m.mob = row.moAtual * (m.ocupacao / 100);
+                    m.moe = Math.max(m.mob, row.moMinima || 0) * absF;
+                    m.usouPiso = (row.moMinima || 0) > 0 && m.mob < (row.moMinima || 0);
+                } else if (row.demandaMensal > 0) {
+                    m.mob = Math.max(row.moAtual, row.moMinima || 0);
+                    m.moe = m.mob * absF;
+                    m.usouPiso = true;
+                }
+                return m;
+            },
+
+            printScenarios() {
+                const varC1 = 0, varC2 = this.state.varC2 / 100, varC3 = this.state.varC3 / 100;
+                const stC1 = this.calculateScenarioState(varC1, 1);
+                const stC2 = this.calculateScenarioState(varC2, 2);
+                const stC3 = this.calculateScenarioState(varC3, 3);
+                const atualTotal = this.state.data.reduce((acc, r) => acc + (r.ativoC1 ? r.moAtual : 0), 0);
+                const setupLbl = `Setups C1/C2/C3: ${this.state.setupC1}/${this.state.setupC2}/${this.state.setupC3} h/dia · Absenteísmo: ${this.state.absPct}%`;
+
+                const psCard = (title, state) => {
+                    const fer = Math.ceil(state.total / 12);
+                    const totalEx = state.total + fer;
+                    const atualEx = atualTotal + fer;
+                    const diff = state.total - atualTotal;
+                    const diffBadge = diff > 0.5 ? `<span class="ps-tag ps-bad">Déficit ${diff.toFixed(1)} vagas</span>` : diff < -0.5 ? `<span class="ps-tag ps-warn">Excesso ${Math.abs(diff).toFixed(1)} vagas</span>` : `<span class="ps-tag ps-ok">Equilibrado</span>`;
+                    const tambor = state.gargalos.length === 0 ? `<span>Sem gargalos &gt;${LIMITE_GARGALO}%</span>` : state.gargalos.map(g => `${this.esc(g.name)} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(1) + '%'}`).join(' · ');
+                    const turnos = state.sugestoes.length === 0 ? '—' : state.sugestoes.map(s => `${this.esc(s.name)} → ${s.nextBase ? s.nextBase + 'h' : 'turma limitada'}`).join(' · ');
+                    return `
+                    <div class="ps-card">
+                        <h3>${title}</h3>
+                        <div class="ps-grid">
+                            <span class="ps-kpi">Total Necessário <b>${totalEx.toFixed(1)} FTE</b> (${state.moDir.toFixed(1)} Dir. + ${state.moInd.toFixed(1)} Ind. + ${fer} fer.)</span>
+                            <span class="ps-kpi">M.O. Atual (c/ fer.) <b>${atualEx.toFixed(1)} FTE</b></span>
+                            <span class="ps-kpi">Δ Equipe ${diffBadge}</span>
+                            <span class="ps-kpi">Tambor (oc &gt;${LIMITE_GARGALO}%) <b>${tambor}</b></span>
+                            <span class="ps-kpi">Sugestão de turnos <b>${turnos}</b></span>
+                        </div>
+                    </div>`;
+                };
+
+                const now = new Date().toLocaleDateString('pt-BR') + ' ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+                const rowsHtml = this.state.data.filter(r => r.ativoC1 || r.ativoC2 || r.ativoC3).map(r => {
+                    const m1 = this.rowMetrics(r, 1, varC1), m2 = this.rowMetrics(r, 2, varC2), m3 = this.rowMetrics(r, 3, varC3);
+                    const ocCell = (m) => !m.isAtivo ? '<td>—</td>' : m.isIndireto ? '<td>N/A</td>' : `<td>${isFinite(m.ocupacao) ? m.ocupacao.toFixed(1) + '%' : 'ERRO'}</td>`;
+                    const moCell = (m) => !m.isAtivo ? '<td>—</td>' : `<td>${m.moe.toFixed(1)}</td>`;
+                    return `<tr><td>${this.esc(r.name)}</td>${ocCell(m1)}${ocCell(m2)}${ocCell(m3)}${moCell(m1)}${moCell(m2)}${moCell(m3)}</tr>`;
+                }).join('');
+
+                const sheet = document.getElementById('print-sheet');
+                sheet.innerHTML = `
+                    <div class="ps-page">
+                        <h1>Painel de S&OP Data-Driven — Cenários Simulados</h1>
+                        <p class="ps-sub">Parque Fabril · Plano Diretor de Capacidade &amp; Mão de Obra · Folha 1/2 · Gerado em ${now}</p>
+                        <p class="ps-sub">Cenário 1: Previsto (0%) · Cenário 2: Médio (+${this.state.varC2}%) · Cenário 3: Pico (+${this.state.varC3}%) · ${setupLbl}</p>
+                        ${psCard('Cenário 1: Previsto', stC1)}
+                        ${psCard('Cenário 2: Médio — +' + this.state.varC2 + '%', stC2)}
+                    </div>
+                    <div class="ps-page">
+                        ${psCard('Cenário 3: Pico — +' + this.state.varC3 + '%', stC3)}
+                        <h2>Detalhamento por Recurso — Ocupação (%) e M.O. Calculada (c/ absenteísmo)</h2>
+                        <table>
+                            <thead><tr><th>Setor / Recurso</th><th>OC C1</th><th>OC C2</th><th>OC C3</th><th>M.O. C1</th><th>M.O. C2</th><th>M.O. C3</th></tr></thead>
+                            <tbody>${rowsHtml}</tbody>
+                        </table>
+                        <p class="ps-foot">Cenários simulados pelo motor de capacidade (v21). Demanda × (1+variação) · Setup descontado do tempo útil · Absenteísmo: ${this.state.absPct}% sobre M.O. calculada · Feristas (1/12 da M.O. base) somados aos totais Atual e Necessária. Folha 2/2.</p>
+                    </div>`;
+                window.print();
+            },
+
+            exportPDF() {
+                if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !window.jspdf.jsPDF.API || typeof window.jspdf.jsPDF.API.autoTable !== 'function') {
+                    alert('A biblioteca jsPDF ainda não carregou. Verifique a conexão com a internet e recarregue a página.');
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const W = doc.internal.pageSize.getWidth();
+
+                const varC1 = 0, varC2 = this.state.varC2 / 100, varC3 = this.state.varC3 / 100;
+                const stC1 = this.calculateScenarioState(varC1, 1);
+                const stC2 = this.calculateScenarioState(varC2, 2);
+                const stC3 = this.calculateScenarioState(varC3, 3);
+                const atualTotal = this.state.data.reduce((acc, r) => acc + (r.ativoC1 ? r.moAtual : 0), 0);
+
+                doc.setFillColor(30, 58, 138);
+                doc.rect(0, 0, W, 26, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(15);
+                doc.text('Painel de S&OP Data-Driven — Cenários Simulados', 14, 11);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(10);
+                doc.text('Parque Fabril · Plano Diretor de Capacidade & Mão de Obra', 14, 17);
+                doc.setFontSize(8.5);
+                doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · Absenteísmo ' + this.state.absPct + '% · Setups ' + this.state.setupC1 + '/' + this.state.setupC2 + '/' + this.state.setupC3 + ' h/dia · Variação C2 +' + this.state.varC2 + '% · C3 +' + this.state.varC3 + '%', 14, 22);
+
+                let y = 34;
+                doc.setFontSize(11);
+                doc.setFont('helvetica', 'bold');
+                doc.setTextColor(30, 58, 138);
+                doc.text('Resumo Consolidado (FTE — feristas incluídos nos totais)', 14, y);
+                y += 4;
+                const cards = [['Cenário 1: Previsto', stC1], ['Cenário 2: Médio', stC2], ['Cenário 3: Pico', stC3]];
+                const cw = (W - 28 - 10) / 3;
+                doc.setFont('helvetica', 'normal');
+                cards.forEach(([title, st], i) => {
+                    const x = 14 + i * (cw + 5);
+                    const fer = Math.ceil(st.total / 12);
+                    const totalEx = st.total + fer;
+                    const atualEx = atualTotal + fer;
+                    const diff = st.total - atualTotal;
+                    const hh = 34;
+                    doc.setDrawColor(148, 163, 184);
+                    doc.setFillColor(241 - (i === 2 ? 2 : 0), 245 - (i === 2 ? 2 : 0), 249 - (i === 2 ? 12 : 0));
+                    doc.roundedRect(x, y, cw, hh, 2, 2, 'FD');
+                    doc.setTextColor(15, 23, 42);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(10);
+                    doc.text(title, x + 4, y + 7);
+                    doc.setFontSize(8.5);
+                    doc.setFont('helvetica', 'normal');
+                    const lines = [
+                        'Total Necessário (c/ abs.): ' + totalEx.toFixed(1) + ' FTE',
+                        'Direta ' + st.moDir.toFixed(1) + ' + Indireta ' + st.moInd.toFixed(1) + ' + ' + fer + ' feristas',
+                        'M.O. Atual (c/ fer.): ' + atualEx.toFixed(1) + ' FTE',
+                        diff > 0.5 ? '→ Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? '→ Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : '→ Equilibrado'
+                    ];
+                    lines.forEach((ln, j) => doc.text(ln, x + 4, y + 13 + j * 5.5));
+                });
+                y += 40;
+
+                const body = this.state.data.filter(r => r.ativoC1 || r.ativoC2 || r.ativoC3).map(r => {
+                    const m1 = this.rowMetrics(r, 1, varC1), m2 = this.rowMetrics(r, 2, varC2), m3 = this.rowMetrics(r, 3, varC3);
+                    const oc = (m) => !m.isAtivo ? '—' : m.isIndireto ? 'N/A' : (isFinite(m.ocupacao) ? m.ocupacao.toFixed(1) + '%' : 'ERRO');
+                    const mo = (m) => !m.isAtivo ? '—' : m.moe.toFixed(1);
+                    return [this.esc(r.name), r.tipo, oc(m1), oc(m2), oc(m3), mo(m1), mo(m2), mo(m3)];
+                });
+                doc.autoTable({
+                    head: [['Setor / Recurso', 'Tipo', 'OC C1', 'OC C2', 'OC C3', 'M.O. C1', 'M.O. C2', 'M.O. C3']],
+                    body,
+                    startY: y,
+                    margin: { left: 14, right: 14, top: 30 },
+                    styles: { fontSize: 8, cellPadding: 2 },
+                    headStyles: { fillColor: [30, 58, 138], fontSize: 8 },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    didDrawPage: (d) => {
+                        const pg = d.doc.internal.pageSize.getHeight();
+                        d.doc.setFontSize(8);
+                        d.doc.setTextColor(100, 116, 139);
+                        d.doc.text('Documento gerado pelo Painel de S&OP Data-Driven · Motor de capacidade v21', 14, pg - 8);
+                        d.doc.text('Página ' + d.pageNumber, d.doc.internal.pageSize.getWidth() - 20, pg - 8);
+                    }
+                });
+
+                let yy = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 14;
+                if (yy + 22 > doc.internal.pageSize.getHeight()) { doc.addPage(); yy = 20; }
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9);
+                doc.setTextColor(30, 58, 138);
+                doc.text('Resumo executivo', 14, yy);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.setTextColor(15, 23, 42);
+                doc.text('• Cenário 1 (Previsto) é a base de planejamento; cenários 2 e 3 aplicam variações de demanda (+' + this.state.varC2 + '% / +' + this.state.varC3 + '%) e setups adicionais.', 14, yy + 5);
+                doc.text('• Absenteísmo de ' + this.state.absPct + '% aplicado sobre toda a M.O. calculada; feristas = ⌈M.O. base ÷ 12⌉ somados aos totais de Atual e Necessária.', 14, yy + 10);
+                doc.text('• Ocupação acima de ' + LIMITE_GARGALO + '% indica gargalo real (Tambor); acima de ' + LIMITE_ATENCAO + '% indica atenção de turno.', 14, yy + 15);
+                doc.save('Cenarios-SOP_' + new Date().toISOString().slice(0, 10) + '.pdf');
+            },
+
+            esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); },
+
+            toggleOrg(id) {
+                this.orgCollapsed = this.orgCollapsed || {};
+                this.orgCollapsed[id] = !this.orgCollapsed[id];
+                this.renderOrganograma();
+            },
+
+            collapseAllOrg(expand) {
+                this.orgCollapsed = {};
+                if (!expand) {
+                    this.state.data.forEach(r => {
+                        if (this.state.data.some(c => c.parentId === r.id)) this.orgCollapsed[r.id] = true;
+                    });
+                }
+                this.renderOrganograma();
+            },
+
+            orgPill(row, isAtivo, isIndireto, ocupacao) {
+                if (!isAtivo) return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-slate-200 text-slate-500 dark:bg-dark-800 dark:text-slate-400 whitespace-nowrap">${(row.demandaMensal > 0 && !isIndireto) ? 'Parado' : 'Inativo'}</span>`;
+                if (isIndireto) return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-neon-green border border-green-200 dark:border-green-500 whitespace-nowrap"><i class="fas fa-users mr-1"></i>Apoio fixo</span>`;
+                if (!isFinite(ocupacao)) return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-neon-alert border border-red-300 dark:border-red-500 whitespace-nowrap"><i class="fas fa-exclamation-triangle"></i> ERRO CAP</span>`;
+                if (ocupacao > 100) return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-neon-alert border border-red-300 dark:border-red-500 whitespace-nowrap"><i class="fas fa-fire"></i> ${ocupacao.toFixed(0)}%</span>`;
+                if (ocupacao > LIMITE_GARGALO) return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-neon-alert border border-red-300 dark:border-red-500 whitespace-nowrap">${ocupacao.toFixed(1)}%</span>`;
+                if (ocupacao > LIMITE_ATENCAO) return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-400 border border-yellow-300 dark:border-yellow-500 whitespace-nowrap">${ocupacao.toFixed(1)}%</span>`;
+                return `<span class="text-[10px] font-bold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-neon-green border border-green-200 dark:border-green-500 whitespace-nowrap">${ocupacao.toFixed(1)}%</span>`;
+            },
+
+            orgNodeCard(row, sc, variation, absF, setupCur, kids, hasKids, collapsed) {
+                const isIndireto = row.tipo === 'Indireto';
+                const isAtivo = row[`ativoC${sc}`];
+                let capReal = 0, capDiaria = 0, demDiaria = 0, ocupacao = 0, mob = 0, moe = 0, usouPiso = false;
+
+                if (isAtivo) {
+                    if (isIndireto) {
+                        mob = row.moAtual;
+                        moe = Math.max(mob, row.moMinima || 0) * absF;
+                        usouPiso = mob < (row.moMinima || 0);
+                    } else {
+                        capReal = row.capNominal * (row.eficiencia / 100);
+                        const tuEff = Math.max(0, (Number(row.tempoUtil) || 0) - setupCur);
+                        capDiaria = capReal * tuEff;
+                        const dc = row.demandaMensal * (1 + variation);
+                        const dias = Math.max(1, row.diasUteis || 1);
+                        demDiaria = dc / dias;
+                        ocupacao = capDiaria > 0 ? (demDiaria / capDiaria) * 100 : (dc > 0 ? Infinity : 0);
+                        mob = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : Math.max(row.moAtual, row.moMinima || 0);
+                        if (ocupacao > 0) { moe = Math.max(mob, row.moMinima || 0) * absF; usouPiso = mob < (row.moMinima || 0) && (row.moMinima || 0) > 0; }
+                    }
+                }
+
+                const delta = isAtivo ? moe - row.moAtual : 0;
+                let calcColor = 'text-slate-400';
+                let calcBorder = 'border-slate-200 dark:border-dark-700';
+                if (isAtivo) {
+                    if (usouPiso) { calcColor = 'text-orange-600 dark:text-yellow-400'; calcBorder = 'border-orange-300 dark:border-yellow-600'; }
+                    else if (delta > 0.1) { calcColor = 'text-red-600 dark:text-neon-alert'; calcBorder = 'border-red-300 dark:border-red-500'; }
+                    else if (delta < -0.1) { calcColor = 'text-yellow-600 dark:text-yellow-400'; calcBorder = 'border-yellow-300 dark:border-yellow-500'; }
+                    else { calcColor = 'text-green-600 dark:text-neon-green'; calcBorder = 'border-green-300 dark:border-green-500'; }
+                }
+
+                const chip = (lbl, val, txtColor) => `<div class="flex flex-col items-center rounded-lg border px-2 py-1.5 bg-slate-50 dark:bg-dark-950 border-slate-200 dark:border-dark-700"><span class="text-[9px] uppercase font-bold text-slate-500">${lbl}</span><span class="text-sm font-black ${txtColor}">${val}</span></div>`;
+
+                const scale = Math.max(row.moAtual, row.moMinima || 0, moe, 1);
+                const pct = v => Math.max(0, Math.min(100, (v / scale) * 100));
+                const bar = `<div class="mt-2 relative w-full h-2 bg-slate-200 dark:bg-dark-800 rounded-full overflow-hidden">
+                    <div class="absolute inset-y-0 left-0 bg-orange-400/80" style="width:${pct(row.moMinima || 0)}%"></div>
+                    <div class="absolute inset-y-0 left-0 bg-blue-500/80" style="width:${pct(row.moAtual)}%"></div>
+                    <div class="absolute inset-y-0 top-1/2 -translate-y-1/2 w-1 bg-green-500 rounded" style="left:${pct(moe)}%"></div>
+                </div>
+                <div class="flex justify-between mt-1 text-[8px] uppercase tracking-wider text-slate-400"><span>mín ${(row.moMinima || 0).toFixed(0)}</span><span>atual ${row.moAtual}</span><span class="text-green-600 dark:text-neon-green font-bold">calc ${moe.toFixed(1)}</span></div>`;
+
+                const moTooltip = isIndireto
+                    ? `M.O.I fixa: MAX(MOa ${row.moAtual}; MOmin ${row.moMinima || 0}) × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE`
+                    : (isAtivo
+                        ? `MOb = MOa ${row.moAtual} × OC ${isFinite(ocupacao) ? ocupacao.toFixed(1) + '%' : '(ERRO CAP)'} = ${mob.toFixed(2)} → MAX(MOb; piso ${row.moMinima || 0})${usouPiso ? ' (piso prevalece)' : ''} → ${(Math.max(mob, row.moMinima || 0)).toFixed(2)} × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE`
+                        : 'Inativo no cenário: M.O. zerada.');
+
+                const infoLine = !isAtivo
+                    ? `<span class="text-[9px] text-slate-400">Inativo no cenário C${sc}</span>`
+                    : (isIndireto
+                        ? `<span class="text-[9px] text-slate-400">M.O.I fixa — não varia com o cenário</span>`
+                        : `<span class="text-[9px] text-slate-400">CR ${capReal.toFixed(2)} t/h · DD ${demDiaria.toFixed(1)} t/dia · TUef ${Math.max(0, (Number(row.tempoUtil) || 0) - setupCur).toFixed(0)}h</span>`);
+
+                const obsNote = row.obs ? `<p class="mt-2 text-[10px] text-slate-400 italic border-t border-dashed border-slate-200 dark:border-dark-700 pt-1.5"><i class="fas fa-sticky-note mr-1 text-purple-400"></i>${this.esc(row.obs)}</p>` : '';
+                const groupBadge = hasKids ? `<span class="text-[9px] font-bold px-1.5 py-0.5 rounded bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300 border border-purple-200 dark:border-purple-500 ml-1.5 leading-none">Grupo</span>` : '';
+                const icon = isIndireto ? 'fa-users' : (hasKids ? 'fa-layer-group' : 'fa-gear');
+                const iconColor = isIndireto ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-neon-green' : (hasKids ? 'bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300' : 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-neon-blue');
+
+                const chevron = hasKids
+                    ? `<button onclick="app.toggleOrg(${row.id})" class="ml-1 w-6 h-6 flex items-center justify-center rounded text-slate-400 hover:text-purple-600 hover:bg-slate-100 dark:hover:bg-dark-800 transition-colors" title="${collapsed ? 'Expandir grupo' : 'Recolher grupo'}"><i class="fas ${collapsed ? 'fa-chevron-right' : 'fa-chevron-down'} text-[10px]"></i></button>`
+                    : '';
+
+                const kidsHtml = hasKids && !collapsed
+                    ? `<div class="mt-2 ml-4 pl-3 border-l-2 border-slate-200 dark:border-dark-700 space-y-2">${kids.map(k => this.orgNodeCard(k, sc, variation, absF, setupCur, this.orgChildren.get(k.id) || [], (this.orgChildren.get(k.id) || []).length > 0, !!this.orgCollapsed[k.id])).join('')}</div>`
+                    : '';
+
+                return `<div class="org-node">
+                    <div class="bg-white dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm p-3 ${!isAtivo ? 'opacity-60 grayscale' : ''}">
+                        <div class="flex items-center justify-between gap-2">
+                            <div class="flex items-center gap-2 min-w-0">
+                                <span class="w-8 h-8 shrink-0 flex items-center justify-center rounded-lg ${iconColor}"><i class="fas ${icon} text-sm"></i></span>
+                                <div class="min-w-0">
+                                    <div class="flex items-center flex-wrap">
+                                        <span class="font-black text-xs ${isAtivo ? 'text-slate-800 dark:text-slate-100' : 'text-slate-400 dark:text-slate-600'} break-words leading-tight">${this.esc(row.name)}</span>${groupBadge}${isIndireto ? '<span class="bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-neon-green text-[9px] px-1 py-0.5 rounded font-bold ml-1.5 dark:border-green-500 leading-none">M.O.I</span>' : ''}
+                                    </div>
+                                    ${infoLine}
+                                </div>
+                            </div>
+                            <div class="flex items-center gap-1 shrink-0">${this.orgPill(row, isAtivo, isIndireto, ocupacao)}${chevron}</div>
+                        </div>
+                        <div class="mt-2 grid grid-cols-3 gap-2">
+                            ${chip('M.O. Atual', row.moAtual, 'text-blue-600 dark:text-neon-blue')}
+                            ${chip('M.O. Mín.', row.moMinima || 0, 'text-orange-600 dark:text-yellow-400')}
+                            <div class="flex flex-col items-center rounded-lg border px-2 py-1.5 bg-slate-50 dark:bg-dark-950 ${calcBorder}" title="${moTooltip}"><span class="text-[9px] uppercase font-bold text-slate-500">M.O. Calc.</span><span class="text-sm font-black ${calcColor}">${isAtivo ? moe.toFixed(1) : '0.0'}${delta > 0.1 ? '<span class="text-red-600 dark:text-neon-alert text-[8px] align-top ml-0.5">▲</span>' : delta < -0.1 ? '<span class="text-yellow-600 dark:text-yellow-400 text-[8px] align-top ml-0.5">▼</span>' : ''}</span></div>
+                        </div>
+                        ${bar}
+                        ${obsNote}
+                    </div>
+                    ${kidsHtml}
+                </div>`;
+            },
+
+            renderOrganograma() {
+                const cont = document.getElementById('organograma-container');
+                if (!cont) return;
+                const sc = this.state.activeScenario;
+                const variation = this.getVariation();
+                const absF = this.getAbsFactor();
+                const setupCur = this.getSetupHours(sc);
+                this.orgCollapsed = this.orgCollapsed || {};
+
+                this.orgChildren = new Map();
+                this.state.data.forEach(n => {
+                    const k = n.parentId == null ? null : n.parentId;
+                    if (!this.orgChildren.has(k)) this.orgChildren.set(k, []);
+                    this.orgChildren.get(k).push(n);
+                });
+                const roots = this.orgChildren.get(null) || [];
+
+                cont.innerHTML = roots.length === 0
+                    ? `<p class="text-sm text-slate-500 italic">Nenhum setor cadastrado. Adicione setores no Dashboard (Modo Simulação → Adicionar Setor).</p>`
+                    : roots.map(r => this.orgNodeCard(r, sc, variation, absF, setupCur, this.orgChildren.get(r.id) || [], (this.orgChildren.get(r.id) || []).length > 0, !!this.orgCollapsed[r.id])).join('');
+
+                const resumo = document.getElementById('org-resumo');
+                if (resumo) {
+                    const st = this.calculateScenarioState(variation, sc);
+                    const atualTotal = this.state.data.reduce((acc, r) => acc + (r[`ativoC${sc}`] ? r.moAtual : 0), 0);
+                    const ferOrg = Math.ceil(st.total / 12);
+                    const totAtualOrg = atualTotal + ferOrg;
+                    const totNecessOrg = st.total + ferOrg;
+                    const dif = totNecessOrg - totAtualOrg;
+                    const varLbl = sc === 1 ? 'Previsto' : (sc === 2 ? 'Vol. Médio (' + this.state.varC2 + '%)' : 'Pico (' + this.state.varC3 + '%)');
+                    const chip = (t, v, c, sub) => `<div class="bg-white dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm p-3"><p class="text-[10px] uppercase font-bold text-slate-500">${t}</p><p class="text-xl font-black ${c}">${v}</p>${sub ? `<p class="text-[10px] text-slate-400 font-semibold">${sub}</p>` : ''}</div>`;
+                    const difHtml = dif > 0.5 ? chip('Δ FTE (Calc − Atual)', '▲ +' + dif.toFixed(1), 'text-red-600 dark:text-neon-alert', 'Déficit: contratar') : dif < -0.5 ? chip('Δ FTE (Calc − Atual)', '▼ ' + dif.toFixed(1), 'text-yellow-600 dark:text-yellow-400', 'Excesso: realocar') : chip('Δ FTE (Calc − Atual)', '● 0.0', 'text-green-600 dark:text-neon-green', 'Equilibrado');
+                    resumo.innerHTML = [
+                        chip('Total M.O. Atual', totAtualOrg, 'text-blue-600 dark:text-neon-blue', '+' + ferOrg + ' feristas incl.'),
+                        chip('Total Necessária (c/ abs.)', totNecessOrg.toFixed(1), 'text-slate-800 dark:text-slate-200', 'Direta ' + st.moDir.toFixed(1) + ' + Indir. ' + st.moInd.toFixed(1) + ' + ' + ferOrg + ' feristas'),
+                        difHtml,
+                        chip('Contexto', 'Cenário ' + sc, 'text-purple-600 dark:text-purple-300', varLbl + ' • Setup ' + setupCur + 'h • Abs ' + this.state.absPct + '%')
+                    ].join('');
+                }
+
+                const pills = document.getElementById('org-scenario-pills');
+                if (pills) {
+                    const mk = (n, lbl) => `<button onclick="app.setScenario(${n})" class="px-4 py-2 rounded-md font-semibold text-xs transition-all duration-200 ${sc === n ? 'bg-white dark:bg-dark-800 text-purple-700 dark:text-purple-300 shadow-sm dark:border dark:border-purple-500' : 'text-slate-500 dark:text-slate-400 hover:text-purple-600 dark:hover:text-purple-300'}">${lbl}</button>`;
+                    pills.innerHTML = mk(1, 'C1: Previsto') + mk(2, 'C2: Médio') + mk(3, 'C3: Pico');
+                }
+            },
+
+            render() {
+                const activeEl = document.activeElement;
+                const activeId = activeEl ? activeEl.id : null;
+                let selStart = 0, selEnd = 0;
+                if (activeId && activeEl.tagName === 'INPUT') { try { selStart = activeEl.selectionStart; selEnd = activeEl.selectionEnd; } catch(e){} }
+
+                const tbody = document.getElementById('table-body');
+                tbody.innerHTML = '';
+                
+                let totalMoAtual = 0, totalMoCalcDir = 0, totalMoCalcInd = 0;
+                let fabDiaria = 0, fabMensal = 0, fabCount = 0;
+                const currentScenario = this.state.activeScenario;
+                const variation = this.getVariation();
+                const absF = this.getAbsFactor();
+                const setupCur = this.getSetupHours(currentScenario);
+                const actionClass = this.state.isLocked ? 'opacity-0 pointer-events-none' : 'opacity-100';
+                const shiftSuggest = [];
+
+                this.state.data.forEach(row => {
+                    const isIndireto = row.tipo === 'Indireto';
+                    const isAtivo = row[`ativoC${currentScenario}`];
+                    
+                    let capReal = 0, capDiaria = 0, demDiaria = 0, ocupacao = 0, moCalcBruto = 0, moCalcEfetivo = 0, tuEff = 0;
+                    let usouPiso = false;
+
+                    if (isIndireto) {
+                        if (isAtivo) {
+                            // MOI FIXA: VAR não impacta; aplica cobertura de absenteísmo
+                            moCalcBruto = row.moAtual;
+                            moCalcEfetivo = Math.max(moCalcBruto, row.moMinima || 0) * absF;
+                            usouPiso = moCalcBruto < row.moMinima && row.moMinima > 0;
+                        }
+                        totalMoCalcInd += moCalcEfetivo;
+                    } else {
+                        if (isAtivo) {
+                            capReal = row.capNominal * (row.eficiencia / 100);
+                            tuEff = Math.max(0, (Number(row.tempoUtil) || 0) - setupCur);
+                            capDiaria = capReal * tuEff;
+                            const demandaCenario = row.demandaMensal * (1 + variation);
+                            const dias = Math.max(1, row.diasUteis || 1);
+                            demDiaria = demandaCenario / dias;
+                            ocupacao = capDiaria > 0 ? (demDiaria / capDiaria) * 100 : (demandaCenario > 0 ? Infinity : 0);
+                            
+                            moCalcBruto = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : Math.max(row.moAtual, row.moMinima || 0);
+                            if(ocupacao > 0) {
+                                moCalcEfetivo = Math.max(moCalcBruto, row.moMinima || 0) * absF;
+                                usouPiso = moCalcBruto < row.moMinima && row.moMinima > 0;
+                            }
+                            const sg = this.suggestShift(row, currentScenario, variation);
+                            if (sg) shiftSuggest.push({ id: row.id, name: row.name, ...sg });
+                        }
+                        totalMoCalcDir += moCalcEfetivo;
+                    }
+                    
+                    if (isAtivo) totalMoAtual += row.moAtual;
+
+                    // Capacidade Fábrica: soma independente — só marcados e ativos, sem alterar demais equipamentos
+                    if (row.capFabrica && isAtivo && !isIndireto && capDiaria > 0) {
+                        fabDiaria += capDiaria;
+                        fabMensal += capDiaria * Math.max(1, row.diasUteis || 1);
+                        fabCount++;
+                    }
+
+                    const rowOpacity = !isAtivo ? 'opacity-40 bg-slate-50 dark:bg-dark-950 grayscale' : 'hover:bg-slate-50 dark:hover:bg-dark-800';
+                    const textColor = !isAtivo ? 'text-slate-400 dark:text-slate-600' : 'text-slate-700 dark:text-slate-200';
+                    
+                    let occUI = '<span class="text-slate-400 dark:text-slate-600">N/A</span>';
+                    let occBg = 'bg-transparent';
+                    
+                    if (!isIndireto) {
+                        if (!isAtivo) {
+                            occUI = row.demandaMensal > 0 ? '<span class="text-red-500 dark:text-neon-alert font-bold flex items-center gap-1 justify-center"><i class="fas fa-ban text-[10px]"></i> Parado</span>' : '<span class="text-slate-400 dark:text-slate-600">0%</span>';
+                        } else {
+                            let sugTxt = '';
+                            if (ocupacao > 100) {
+                                const sg = this.suggestShift(row, currentScenario, variation);
+                                if (sg && sg.nextBase) sugTxt = `<div class="text-[9px] font-bold text-amber-700 dark:text-yellow-400 leading-tight">→ ${sg.nextBase}h: ${isFinite(sg.ocNext) ? sg.ocNext.toFixed(0) + '%' : 'ERRO'}</div>`;
+                                else if (sg && sg.maxed) sugTxt = `<div class="text-[9px] font-bold text-red-600 leading-tight">sem degrau: avaliar 4º turno</div>`;
+                            }
+                            if (!isFinite(ocupacao)) { occBg = 'bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/30 dark:text-neon-alert dark:border-red-500 shadow-sm'; occUI = `<div><i class="fas fa-exclamation-triangle mr-1"></i> ERRO CAP</div>${sugTxt}`; }
+                            else if (ocupacao > 100) { occBg = 'bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/30 dark:text-neon-alert dark:border-red-500 shadow-sm'; occUI = `<div><i class="fas fa-fire mr-1"></i> ${ocupacao.toFixed(1)}%</div>${sugTxt}`; }
+                            else if (ocupacao > LIMITE_GARGALO) { occBg = 'bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/30 dark:text-neon-alert dark:border-red-500 shadow-sm'; occUI = `<i class="fas fa-fire mr-1"></i> ${ocupacao.toFixed(1)}%`; }
+                            else if (ocupacao > LIMITE_ATENCAO) { occBg = 'bg-yellow-100 text-yellow-700 border border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-500 shadow-sm'; occUI = `<i class="fas fa-exclamation-circle mr-1"></i> ${ocupacao.toFixed(1)}%`; }
+                            else { occBg = 'bg-transparent text-slate-700 dark:text-slate-300 font-medium'; occUI = `${ocupacao.toFixed(1)}%`; }
+                        }
+                    }
+
+                    const moClass = (moCalcEfetivo > row.moAtual + 0.1 && isAtivo && !usouPiso) 
+                        ? 'bg-red-50 text-red-700 border-red-400 dark:bg-red-900/30 dark:text-neon-alert dark:border-red-500 font-bold shadow-[inset_0_0_0_1px_rgba(239,68,68,1)] dark:shadow-[inset_0_0_0_1px_rgba(255,0,60,1)]' 
+                        : (usouPiso ? 'bg-orange-50 text-orange-700 border-orange-300 dark:bg-dark-950 dark:border-yellow-600 dark:text-yellow-400 font-bold' : 'bg-transparent border-transparent text-blue-700 dark:text-neon-blue font-bold');
+
+                    const moDelta = isAtivo ? moCalcEfetivo - row.moAtual : 0;
+                    const moTooltip = isIndireto
+                        ? `M.O.I fixa: MAX(MOa ${row.moAtual}; MOmin ${row.moMinima||0}) x ${absF.toFixed(2)} = ${moCalcEfetivo.toFixed(1)} FTE (+${this.state.absPct}% abs.)`
+                        : (isAtivo
+                            ? `MOb = MOa ${row.moAtual} x OC ${isFinite(ocupacao) ? ocupacao.toFixed(1)+'%' : '(ERRO CAP)'} = ${moCalcBruto.toFixed(2)} -> MAX(MOb; piso ${row.moMinima||0})${usouPiso?' (piso prevalece)':''} = ${Math.max(moCalcBruto,row.moMinima||0).toFixed(2)} x ${absF.toFixed(2)} = ${moCalcEfetivo.toFixed(1)} FTE (c/ abs.)`
+                            : 'Inativo com demanda > 0: M.O. zerada (Parado).');
+                    const deltaUI = isAtivo
+                        ? (moDelta > 0.1 ? `<span class="text-[10px] font-bold text-red-600 dark:text-neon-alert mt-0.5">&#9650; +${moDelta.toFixed(1)}</span>`
+                          : moDelta < -0.1 ? `<span class="text-[10px] font-bold text-green-600 dark:text-neon-green mt-0.5">&#9660; ${moDelta.toFixed(1)}</span>`
+                          : `<span class="text-[10px] font-bold text-slate-400 mt-0.5">&#9679; 0.0</span>`)
+                        : '';
+                    const mobLine = isAtivo ? `<span class="text-[9px] text-slate-400 leading-none" title="M.O. Bruta = MOa x OC/100">MOb ${moCalcBruto.toFixed(1)}</span>` : '';
+
+                    const badgeTipo = isIndireto ? `<span class="bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-neon-green text-[9px] px-1 py-0.5 rounded font-bold ml-1.5 dark:border-green-500 leading-none">M.O.I</span>` : '';
+
+                    let marginClass = ''; let hierarchyLine = '';
+                    if (row.parentId) {
+                        marginClass = 'ml-4';
+                        if (this.state.data.find(p => p.id === row.parentId)?.parentId) marginClass = 'ml-8';
+                        hierarchyLine = `<div class="w-2 h-3 border-l-2 border-b-2 border-slate-300 dark:border-slate-600 mr-1.5 mb-1.5 opacity-80"></div>`;
+                    }
+                    
+                    let alertaHierarquia = '';
+                    let filhas = this.state.data.filter(r => r.parentId === row.id && r[`ativoC${currentScenario}`]);
+                    if (filhas.length > 0) {
+                        let demMaeCen = row.demandaMensal * (1 + variation);
+                        let demandaFilhas = filhas.reduce((acc, f) => acc + f.demandaMensal * (1 + variation), 0);
+                        if (demandaFilhas > demMaeCen) {
+                            alertaHierarquia = `<div class="mt-1 animate-pulse ${marginClass}"><span class="text-[9px] text-red-700 bg-red-100 border border-red-300 dark:text-neon-alert dark:bg-red-900/30 dark:border-red-500 rounded px-1.5 py-0.5 inline-flex items-center font-bold shadow-sm whitespace-normal break-words leading-tight"><i class="fas fa-exclamation-triangle mr-1 shrink-0"></i> Filhas (${demandaFilhas.toFixed(0)}t) > Mãe (${demMaeCen.toFixed(0)}t)</span></div>`;
+                        }
+                    }
+
+                    const tr = document.createElement('tr');
+                    tr.className = `transition-all duration-200 ${rowOpacity}`;
+                    tr.innerHTML = `
+                        <td class="px-1 py-1 text-center border-r border-slate-200 dark:border-dark-700 relative">
+                            <div class="relative inline-block w-8 align-middle select-none transition duration-200 ease-in">
+                                <input type="checkbox" id="toggle-${row.id}" onchange="app.toggleAtivo(${row.id})"
+                                    class="toggle-checkbox absolute block w-4 h-4 rounded-full bg-white dark:bg-dark-800 border-2 appearance-none cursor-pointer transition-all duration-200 z-10"
+                                    ${isAtivo ? 'checked' : ''} ${this.state.isLocked ? 'disabled' : ''}/>
+                                <label for="toggle-${row.id}" class="toggle-label block overflow-hidden h-4 rounded-full bg-slate-300 dark:bg-dark-700 cursor-pointer transition-colors duration-200"></label>
+                            </div>
+                        </td>
+                        <td class="px-1 py-1 text-center border-r border-slate-200 dark:border-dark-700 bg-purple-50/50 dark:bg-dark-800/50" title="Seletor Cap. Fábrica: soma este equipamento na linha FÁBRICA. Independente dos demais.">
+                            <input type="checkbox" onchange="app.toggleCapFabrica(${row.id})" ${row.capFabrica ? 'checked' : ''} ${isIndireto ? 'disabled' : ''}
+                                class="w-4 h-4 accent-purple-600 cursor-pointer" title="${isIndireto ? 'Indireto não entra em capacidade fabril' : 'Incluir na capacidade da Fábrica'}">
+                        </td>
+                        <td class="px-1 py-1 align-middle min-w-[42px] max-w-[66px] h-full min-h-[36px] border-r border-slate-200 dark:border-dark-700">
+                            <div class="flex flex-col justify-center h-full py-0.5">
+                                <div class="flex items-start ${marginClass}">
+                                        ${hierarchyLine}<span class="font-black text-xs ${textColor} break-words leading-tight whitespace-normal${row.obs ? ' cursor-help' : ''}" ${row.obs ? `title="${this.esc(row.obs)}"` : ''}>${this.esc(row.name)}</span>${badgeTipo}
+                                    </div>
+                                ${alertaHierarquia}
+                            </div>
+                        </td>
+                        <td class="px-1 py-1">${this.generateControlCell(row.id, 'capNominal', row.capNominal.toFixed(1), row.tipo)}</td>
+                        <td class="px-1 py-1">${this.generateControlCell(row.id, 'eficiencia', row.eficiencia, row.tipo)}</td>
+                        <td class="px-1 py-1 text-center bg-slate-50 dark:bg-dark-800 font-bold text-green-700 dark:text-neon-green text-xs dark:glow-text-green">${isIndireto ? 'N/A' : capReal.toFixed(2)}</td>
+                        <td class="px-1 py-1 w-16 text-center">${this.generateCycleButton(row.id, row.tempoUtil, row.tipo)}${(!isIndireto && setupCur > 0) ? `<div class="text-[9px] text-amber-600 dark:text-yellow-400 text-center leading-tight">−${setupCur} → ${tuEff.toFixed(0)}h ef.</div>` : ''}</td>
+                        <td class="px-1 py-1 text-center bg-slate-50 dark:bg-dark-800 font-bold text-xs ${isAtivo && capDiaria>0 ? 'text-green-700 dark:text-neon-green' : 'text-slate-400 dark:text-slate-600'}" title="${setupCur > 0 ? `TU efetivo = ${row.tempoUtil} − ${setupCur} setup = ${tuEff.toFixed(1)}h` : ''}">${isIndireto ? 'N/A' : capDiaria.toFixed(1)}</td>
+                        <td class="px-1 py-1 w-24">${this.generateDemandaCell(row.id, row, variation)}</td>
+                        <td class="px-1 py-1">${this.generateControlCell(row.id, 'diasUteis', row.diasUteis, row.tipo)}</td>
+                        <td class="px-1 py-1 text-center border-l border-slate-200 dark:border-dark-700 font-bold text-xs ${currentScenario !== 1 && isAtivo ? 'text-blue-700 dark:text-yellow-400' : 'text-slate-700 dark:text-slate-300'}">${isIndireto ? 'N/A' : demDiaria.toFixed(1)}</td>
+                        <td class="px-1 py-1 w-20 text-center"><div class="rounded py-0.5 px-1 flex items-center justify-center gap-1 text-[10px] ${occBg}">${occUI}</div></td>
+                        <td class="px-1 py-1 border-l border-slate-200 dark:border-dark-700">${this.generateControlCell(row.id, 'moAtual', row.moAtual, row.tipo)}</td>
+                        
+                        <td class="px-1 py-1 border-l border-slate-200 dark:border-dark-700">${this.generateControlCell(row.id, 'moMinima', row.moMinima || 0, row.tipo, false, 'orange')}</td>
+                        
+                        <td class="px-1 py-1 w-24 text-center border-l border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-950">
+                            <div class="flex flex-col items-center justify-center" title="${moTooltip}">
+                                <div class="rounded py-0.5 px-1 border ${moClass} text-sm w-10 text-center shrink-0 font-black">
+                                    ${isAtivo ? moCalcEfetivo.toFixed(1) : '<span class="text-slate-400 dark:text-slate-600 text-xs">0.0</span>'}
+                                </div>
+                                ${mobLine}
+                                ${isAtivo && usouPiso ? `<span class="text-[9px] text-orange-600 dark:text-yellow-400 font-bold mt-0.5 uppercase tracking-tighter">(Piso)</span>` : ''}
+                                ${isAtivo && Number(this.state.absPct) > 0 ? `<span class="text-[9px] text-slate-400 leading-none">+${this.state.absPct}%</span>` : ''}
+                                ${deltaUI}
+                            </div>
+                        </td>
+                        
+                        <td class="px-1 py-1 border-l border-slate-200 dark:border-dark-700 text-center">
+                            <div class="flex items-center justify-center gap-0.5 transition-opacity duration-200 ${actionClass}">
+                                <button onclick="app.moveSector(${row.id}, 'up')" class="text-slate-400 hover:text-purple-600 transition-colors px-0.5" title="Subir sequência dentro do grupo (mesma mãe)"><i class="fas fa-arrow-up text-[11px]"></i></button>
+                                <button onclick="app.moveSector(${row.id}, 'down')" class="text-slate-400 hover:text-purple-600 transition-colors px-0.5" title="Descer sequência dentro do grupo (mesma mãe)"><i class="fas fa-arrow-down text-[11px]"></i></button>
+                                <button onclick="app.editSector(${row.id})" class="text-slate-400 hover:text-blue-600 dark:hover:text-neon-blue transition-colors px-0.5" title="Editar"><i class="fas fa-edit text-[12px]"></i></button>
+                                <button onclick="app.deleteSector(${row.id})" class="text-slate-400 hover:text-red-500 dark:hover:text-neon-alert transition-colors px-0.5" title="Excluir"><i class="fas fa-trash-alt text-[12px]"></i></button>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+
+                document.getElementById('ft-dir').innerText = totalMoCalcDir.toFixed(1);
+                document.getElementById('ft-ind').innerText = totalMoCalcInd.toFixed(1);
+                const totalCalcBase = totalMoCalcDir + totalMoCalcInd;
+                const feristas = Math.ceil(totalCalcBase / 12);
+                const totalCalc = totalCalcBase + feristas;
+                const totalAtualDisp = totalMoAtual + feristas;
+                document.getElementById('total-mo-atual').innerText = totalAtualDisp;
+                document.getElementById('total-fabrica').innerText = fabDiaria.toFixed(1) + ' t/dia';
+                document.getElementById('total-fabrica-mes').innerText = fabMensal.toFixed(0) + ' t/mês (' + fabCount + ' selec.)';
+                const fabD = document.getElementById('fab-cap-diaria'); if (fabD) fabD.innerText = fabDiaria.toFixed(1) + ' t/dia';
+                const fabM = document.getElementById('fab-cap-mensal'); if (fabM) fabM.innerText = fabMensal.toFixed(0) + ' t/mês';
+                const fabC = document.getElementById('fab-count'); if (fabC) fabC.innerText = fabCount + ' selecionados';
+                document.getElementById('total-mo-calc').innerText = totalCalc.toFixed(1);
+                const absLbl = document.getElementById('total-mo-abs'); if (absLbl) absLbl.innerText = `(+${this.state.absPct}% abs. • +${feristas} feristas)`;
+                const ferEl = document.getElementById('total-feristas'); if (ferEl) ferEl.innerText = feristas;
+
+                const panel = document.getElementById('shift-panel');
+                if (panel) {
+                    if (shiftSuggest.length === 0) {
+                        panel.classList.add('hidden'); panel.innerHTML = '';
+                    } else {
+                        panel.classList.remove('hidden');
+                        const items = shiftSuggest.map(s => {
+                            const sol = s.maxed ? 'Sem degrau disponível — avaliar 4º turno, hora extra ou nova linha.'
+                                : `Gargalo detectado. Sugestão: abrir ${this.shiftLabel(s.nextBase)} neste recurso (OC ${isFinite(s.oc) ? s.oc.toFixed(0) : '∞'}% → ${isFinite(s.ocNext) ? s.ocNext.toFixed(0) + '%' : 'ERRO'}).`;
+                            const btn = (!s.maxed)
+                                ? (this.state.isLocked
+                                    ? `<span class="text-[11px] text-slate-400">(ative Modo Simulação p/ aplicar)</span>`
+                                    : `<button onclick="app.applyOneShift(${s.id})" class="ml-2 px-2 py-0.5 text-[11px] font-bold rounded bg-amber-500 text-white hover:bg-amber-600">Aplicar ${s.nextBase}h</button>`)
+                                : '';
+                            return `<div class="flex flex-wrap items-center gap-1 py-0.5"><i class="fas fa-clock text-amber-500 mr-1"></i><b>${this.esc(s.name)}</b><span>— ${sol}</span>${btn}</div>`;
+                        }).join('');
+                        panel.innerHTML = `<div class="flex flex-wrap items-center justify-between gap-2 mb-1"><b class="text-amber-700 dark:text-yellow-400"><i class="fas fa-exclamation-triangle mr-1"></i>Balanceamento dinâmico — Cenário ${currentScenario} (setup ${setupCur}h/dia)</b>${this.state.isLocked ? '' : `<button onclick="app.applySuggestedShifts()" class="px-3 py-1 text-xs font-bold rounded bg-amber-500 text-white hover:bg-amber-600">Aplicar todos os turnos sugeridos (${shiftSuggest.filter(s=>s.nextBase).length})</button>`}</div>${items}`;
+                    }
+                }
+                
+                const dif = totalCalc - totalAtualDisp;
+                const statusDiv = document.getElementById('status-equipe');
+                
+                if (dif > 0.5) {
+                    statusDiv.className = "px-4 py-2 rounded-lg text-sm font-bold bg-red-100 text-red-700 border border-red-300 dark:bg-red-900/30 dark:text-neon-alert dark:border-red-500 shadow-sm";
+                    statusDiv.innerHTML = `<i class="fas fa-arrow-up mr-1"></i> Déficit de ${dif.toFixed(1)} FTE`;
+                } else if (dif < -0.5) {
+                    statusDiv.className = "px-4 py-2 rounded-lg text-sm font-bold bg-yellow-100 text-yellow-700 border border-yellow-300 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-500 shadow-sm";
+                    statusDiv.innerHTML = `<i class="fas fa-arrow-down mr-1"></i> Excesso de ${Math.abs(dif).toFixed(1)} FTE`;
+                } else {
+                    statusDiv.className = "px-4 py-2 rounded-lg text-sm font-bold bg-green-100 text-green-700 border border-green-300 dark:bg-green-900/30 dark:text-neon-green dark:border-green-500 shadow-sm";
+                    statusDiv.innerHTML = `<i class="fas fa-check-circle mr-1"></i> Equipe Balanceada`;
+                }
+
+                this.renderOrganograma();
+                this.renderComparativo();
+                this.saveData();
+
+                if (activeId) {
+                    const el = document.getElementById(activeId);
+                    if (el) {
+                        el.focus();
+                        try { el.setSelectionRange(selStart, selEnd); } catch(e) {}
+                    }
+                }
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => app.init());
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(()=>{}));
+        }
+    </script>
+</body>
+</html>
