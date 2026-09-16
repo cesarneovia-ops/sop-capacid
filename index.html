@@ -246,7 +246,7 @@
                             <label class="text-xs font-bold text-orange-600 dark:text-yellow-400"><i class="fas fa-user-shield mr-1"></i>Absenteísmo (%):</label>
                             <input type="number" id="input-abs" value="5" min="0" max="30" step="0.5" class="w-16 border border-orange-300 dark:border-yellow-600 bg-white dark:bg-dark-950 text-orange-700 dark:text-yellow-400 rounded px-1 py-1 text-sm text-center font-bold disabled:bg-slate-100 disabled:dark:bg-dark-900 disabled:opacity-50" onchange="app.updateGlobalVars()" disabled>
                         </div>
-                        <div class="flex items-center gap-2 border-l border-slate-300 dark:border-dark-700 pl-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5 border border-amber-200 dark:border-amber-600/50" title="Feristas ideais = ⌈ Total M.O. Necessária ÷ 12 ⌉. O número é SOMADO aos totais M.O. Atual e M.O. Necessária (rodapé, cards e organograma).">
+                        <div class="flex items-center gap-2 border-l border-slate-300 dark:border-dark-700 pl-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5 border border-amber-200 dark:border-amber-600/50" title="Feristas ideais = ⌈ Total M.O. Necessária ÷ 12 ⌉. O número é SOMADO apenas ao Total M.O. Necessária.">
                             <label class="text-xs font-bold text-amber-700 dark:text-amber-300"><i class="fas fa-umbrella-beach mr-1"></i>Feristas:</label>
                             <span id="total-feristas" class="text-lg font-black text-amber-700 dark:text-amber-300">0</span>
                             <span class="text-[9px] text-amber-500 dark:text-amber-400 leading-tight">(MO÷12) soma aos totais</span>
@@ -473,7 +473,7 @@
                     <li><b>Fórmula:</b> <code>MO_final = MAX(MOb;MOmin) × (1+ABS)</code> (direta) e <code>MAX(MOa;MOmin) × (1+ABS)</code> (M.O.I). Inativo ou OC=0 → 0.</li>
                     <li><b>Campo global</b> no topo do Dashboard (0–30%, default 5%). Vale para Dashboard, cards estratégicos, rodapé e CSV. Ex.: base 10,0 FTE com 5% → <b>10,5 FTE</b>.</li>
                     <li><b>Padronização:</b> usar 5–8% conforme histórico de absenteísmo da unidade; revisar trimestralmente no S&amp;OP.</li>
-                    <li><b>Feristas (ideal):</b> <code>Feristas = ⌈ Total M.O. Necessária (c/ abs.) ÷ 12 ⌉</code>. Um férias por ano diluído em 12 meses → cada 12 FTE regulares exige 1 reserva. O número entra <b>somado</b> no <b>Total M.O. Atual</b> e no <b>Total M.O. Necessária</b> exibidos (rodapé, cards estratégicos e organograma) — o Δ Equipe permanece o gap operacional líquido, pois ambos incluem o mesmo número de feristas. Ex.: base 38,4 FTE → +4 feristas → total exibido 42,4.</li>
+                    <li><b>Feristas (ideal):</b> <code>Feristas = ⌈ Total M.O. Necessária (c/ abs.) ÷ 12 ⌉</code>. Um férias por ano diluído em 12 meses → cada 12 FTE regulares exige 1 reserva. O número entra <b>somado apenas</b> no <b>Total M.O. Necessária</b> (rodapé, cards estratégicos e organograma) — o <b>Total M.O. Atual</b> permanece sem feristas/abs. Ex.: base 38,4 FTE → +4 feristas → total necessário 42,4.</li>
                 </ul>
                 <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (Gallup — engajamento × presença; Deloitte Human Capital): unidades industriais costumam provisionar 5–8% de cobertura para faltas, férias e treinamentos — o default 5% é ponto de partida; calibre com o histórico da unidade e revise no S&amp;OP trimestral.</p>
             </div>
@@ -1291,9 +1291,9 @@
                 let moAtualTotal = this.state.data.reduce((acc, r) => acc + (r.ativoC1 ? r.moAtual : 0), 0);
                 
                 const generateCard = (title, variationLabel, state, bgHeader, borderCol) => {
-                    const diff = state.total - moAtualTotal;
                     const ferCard = Math.ceil(state.total / 12);
                     const totalExib = state.total + ferCard;
+                    const diff = totalExib - moAtualTotal;
                     let diffHtml = diff > 0.5 ? `<span class="text-red-700 dark:text-neon-alert font-bold bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded text-sm border border-red-200 dark:border-red-500"><i class="fas fa-arrow-up"></i> ${diff.toFixed(1)} vagas</span>`
                                  : diff < -0.5 ? `<span class="text-yellow-700 dark:text-yellow-400 font-bold bg-yellow-100 dark:bg-yellow-900/40 px-2 py-1 rounded text-sm border border-yellow-200 dark:border-yellow-500"><i class="fas fa-arrow-down"></i> ${Math.abs(diff).toFixed(1)} vagas</span>`
                                  : `<span class="text-green-700 dark:text-neon-green font-bold bg-green-100 dark:bg-green-900/40 px-2 py-1 rounded text-sm border border-green-200 dark:border-green-500"><i class="fas fa-check"></i> Equilibrado</span>`;
@@ -1365,8 +1365,8 @@
                 const psCard = (title, state) => {
                     const fer = Math.ceil(state.total / 12);
                     const totalEx = state.total + fer;
-                    const atualEx = atualTotal + fer;
-                    const diff = state.total - atualTotal;
+                    const atualEx = atualTotal;
+                    const diff = totalEx - atualEx;
                     const diffBadge = diff > 0.5 ? `<span class="ps-tag ps-bad">Déficit ${diff.toFixed(1)} vagas</span>` : diff < -0.5 ? `<span class="ps-tag ps-warn">Excesso ${Math.abs(diff).toFixed(1)} vagas</span>` : `<span class="ps-tag ps-ok">Equilibrado</span>`;
                     const tambor = state.gargalos.length === 0 ? `<span>Sem gargalos &gt;${LIMITE_GARGALO}%</span>` : state.gargalos.map(g => `${this.esc(g.name)} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(1) + '%'}`).join(' · ');
                     const turnos = state.sugestoes.length === 0 ? '—' : state.sugestoes.map(s => `${this.esc(s.name)} → ${s.nextBase ? s.nextBase + 'h' : 'turma limitada'}`).join(' · ');
@@ -1375,7 +1375,7 @@
                         <h3>${title}</h3>
                         <div class="ps-grid">
                             <span class="ps-kpi">Total Necessário <b>${totalEx.toFixed(1)} FTE</b> (${state.moDir.toFixed(1)} Dir. + ${state.moInd.toFixed(1)} Ind. + ${fer} fer.)</span>
-                            <span class="ps-kpi">M.O. Atual (c/ fer.) <b>${atualEx.toFixed(1)} FTE</b></span>
+                            <span class="ps-kpi">M.O. Atual <b>${atualEx.toFixed(1)} FTE</b></span>
                             <span class="ps-kpi">Δ Equipe ${diffBadge}</span>
                             <span class="ps-kpi">Tambor (oc &gt;${LIMITE_GARGALO}%) <b>${tambor}</b></span>
                             <span class="ps-kpi">Sugestão de turnos <b>${turnos}</b></span>
@@ -1407,7 +1407,7 @@
                             <thead><tr><th>Setor / Recurso</th><th>OC C1</th><th>OC C2</th><th>OC C3</th><th>M.O. C1</th><th>M.O. C2</th><th>M.O. C3</th></tr></thead>
                             <tbody>${rowsHtml}</tbody>
                         </table>
-                        <p class="ps-foot">Cenários simulados pelo motor de capacidade (v21). Demanda × (1+variação) · Setup descontado do tempo útil · Absenteísmo: ${this.state.absPct}% sobre M.O. calculada · Feristas (1/12 da M.O. base) somados aos totais Atual e Necessária. Folha 2/2.</p>
+                        <p class="ps-foot">Cenários simulados pelo motor de capacidade (v21). Demanda × (1+variação) · Setup descontado do tempo útil · Absenteísmo: ${this.state.absPct}% sobre M.O. calculada · Feristas (1/12 da M.O. base) somados apenas ao Total M.O. Necessária. Folha 2/2.</p>
                     </div>`;
                 window.print();
             },
@@ -1443,7 +1443,7 @@
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(30, 58, 138);
-                doc.text('Resumo Consolidado (FTE — feristas incluídos nos totais)', 14, y);
+                doc.text('Resumo Consolidado (FTE — feristas apenas na Necessária)', 14, y);
                 y += 4;
                 const cards = [['Cenário 1: Previsto', stC1], ['Cenário 2: Médio', stC2], ['Cenário 3: Pico', stC3]];
                 const cw = (W - 28 - 10) / 3;
@@ -1452,8 +1452,8 @@
                     const x = 14 + i * (cw + 5);
                     const fer = Math.ceil(st.total / 12);
                     const totalEx = st.total + fer;
-                    const atualEx = atualTotal + fer;
-                    const diff = st.total - atualTotal;
+                    const atualEx = atualTotal;
+                    const diff = totalEx - atualEx;
                     const hh = 34;
                     doc.setDrawColor(148, 163, 184);
                     doc.setFillColor(241 - (i === 2 ? 2 : 0), 245 - (i === 2 ? 2 : 0), 249 - (i === 2 ? 12 : 0));
@@ -1467,7 +1467,7 @@
                     const lines = [
                         'Total Necessário (c/ abs.): ' + totalEx.toFixed(1) + ' FTE',
                         'Direta ' + st.moDir.toFixed(1) + ' + Indireta ' + st.moInd.toFixed(1) + ' + ' + fer + ' feristas',
-                        'M.O. Atual (c/ fer.): ' + atualEx.toFixed(1) + ' FTE',
+                        'M.O. Atual: ' + atualEx.toFixed(1) + ' FTE',
                         diff > 0.5 ? '→ Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? '→ Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : '→ Equilibrado'
                     ];
                     lines.forEach((ln, j) => doc.text(ln, x + 4, y + 13 + j * 5.5));
@@ -1507,7 +1507,7 @@
                 doc.setFontSize(8.5);
                 doc.setTextColor(15, 23, 42);
                 doc.text('• Cenário 1 (Previsto) é a base de planejamento; cenários 2 e 3 aplicam variações de demanda (+' + this.state.varC2 + '% / +' + this.state.varC3 + '%) e setups adicionais.', 14, yy + 5);
-                doc.text('• Absenteísmo de ' + this.state.absPct + '% aplicado sobre toda a M.O. calculada; feristas = ⌈M.O. base ÷ 12⌉ somados aos totais de Atual e Necessária.', 14, yy + 10);
+                doc.text('• Absenteísmo de ' + this.state.absPct + '% aplicado sobre toda a M.O. calculada; feristas = ⌈M.O. base ÷ 12⌉ somados apenas ao Total M.O. Necessária.', 14, yy + 10);
                 doc.text('• Ocupação acima de ' + LIMITE_GARGALO + '% indica gargalo real (Tambor); acima de ' + LIMITE_ATENCAO + '% indica atenção de turno.', 14, yy + 15);
                 doc.save('Cenarios-SOP_' + new Date().toISOString().slice(0, 10) + '.pdf');
             },
@@ -1661,14 +1661,14 @@
                     const st = this.calculateScenarioState(variation, sc);
                     const atualTotal = this.state.data.reduce((acc, r) => acc + (r[`ativoC${sc}`] ? r.moAtual : 0), 0);
                     const ferOrg = Math.ceil(st.total / 12);
-                    const totAtualOrg = atualTotal + ferOrg;
+                    const totAtualOrg = atualTotal;
                     const totNecessOrg = st.total + ferOrg;
                     const dif = totNecessOrg - totAtualOrg;
                     const varLbl = sc === 1 ? 'Previsto' : (sc === 2 ? 'Vol. Médio (' + this.state.varC2 + '%)' : 'Pico (' + this.state.varC3 + '%)');
                     const chip = (t, v, c, sub) => `<div class="bg-white dark:bg-dark-900 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm p-3"><p class="text-[10px] uppercase font-bold text-slate-500">${t}</p><p class="text-xl font-black ${c}">${v}</p>${sub ? `<p class="text-[10px] text-slate-400 font-semibold">${sub}</p>` : ''}</div>`;
                     const difHtml = dif > 0.5 ? chip('Δ FTE (Calc − Atual)', '▲ +' + dif.toFixed(1), 'text-red-600 dark:text-neon-alert', 'Déficit: contratar') : dif < -0.5 ? chip('Δ FTE (Calc − Atual)', '▼ ' + dif.toFixed(1), 'text-yellow-600 dark:text-yellow-400', 'Excesso: realocar') : chip('Δ FTE (Calc − Atual)', '● 0.0', 'text-green-600 dark:text-neon-green', 'Equilibrado');
                     resumo.innerHTML = [
-                        chip('Total M.O. Atual', totAtualOrg, 'text-blue-600 dark:text-neon-blue', '+' + ferOrg + ' feristas incl.'),
+                        chip('Total M.O. Atual', totAtualOrg, 'text-blue-600 dark:text-neon-blue', 'sem feristas/abs'),
                         chip('Total Necessária (c/ abs.)', totNecessOrg.toFixed(1), 'text-slate-800 dark:text-slate-200', 'Direta ' + st.moDir.toFixed(1) + ' + Indir. ' + st.moInd.toFixed(1) + ' + ' + ferOrg + ' feristas'),
                         difHtml,
                         chip('Contexto', 'Cenário ' + sc, 'text-purple-600 dark:text-purple-300', varLbl + ' • Setup ' + setupCur + 'h • Abs ' + this.state.absPct + '%')
@@ -1870,7 +1870,7 @@
                 const totalCalcBase = totalMoCalcDir + totalMoCalcInd;
                 const feristas = Math.ceil(totalCalcBase / 12);
                 const totalCalc = totalCalcBase + feristas;
-                const totalAtualDisp = totalMoAtual + feristas;
+                const totalAtualDisp = totalMoAtual;
                 document.getElementById('total-mo-atual').innerText = totalAtualDisp;
                 document.getElementById('total-fabrica').innerText = fabDiaria.toFixed(1) + ' t/dia';
                 document.getElementById('total-fabrica-mes').innerText = fabMensal.toFixed(0) + ' t/mês (' + fabCount + ' selec.)';
