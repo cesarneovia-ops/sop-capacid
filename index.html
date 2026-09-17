@@ -341,6 +341,7 @@
                             <p class="text-xs text-slate-500 uppercase font-bold">Total M.O. Necessária</p>
                             <p class="text-3xl font-black text-blue-600 dark:text-neon-blue dark:glow-text-blue" id="total-mo-calc">0.0</p>
                             <p class="text-[11px] text-orange-600 dark:text-yellow-400 font-semibold" id="total-mo-abs">(+5% abs.)</p>
+                            <p class="text-[9px] text-slate-400 font-mono" id="total-mo-calc-raw" title="Acumulado sem arredondamento, baseado na ocupação (MOb) antes do toFixed(1)">acum. 0.00</p>
                         </div>
                         <div class="text-center flex flex-col justify-center min-w-[180px] border-l border-slate-200 dark:border-dark-700 pl-4">
                             <div id="status-equipe" class="px-3 py-2 rounded text-sm font-bold border"></div>
@@ -439,8 +440,8 @@
                 <ul class="list-disc ml-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
                     <li><b>M.O.I Fixa = MAX(MOa ; MOmin) — VAR NÃO impacta.</b> Regra v21-fix: apoio (ex.: empilhadeira) é estrutura fixa por turno; aumento/redução de volume nos cenários altera só a M.O. direta. <span class="font-mono bg-slate-100 dark:bg-dark-950 px-1 rounded">Ex. Empilhadeira C1=C2=C3: MAX(4;2)=4</span>.</li>
                     <li><b>M.O.I Efetiva = MAX(MOa; MOmin), constante nos 3 cenários.</b> Ex.: MAX(4;2)=4.</li>
-                    <li><b>Total M.O. Atual = Σ MOa (ativos).</b> Padronizado v21: usa MOa puro no Dashboard e nos cards (correção – antes o comparativo usava MAX(MOa;MOmin)).</li>
-                    <li><b>Total M.O. Necessária = Σ MOe_direta + Σ MOe_indireta.</b> Exibida como Direta / Indireta no rodapé.</li>
+                    <li><b>Total M.O. Atual = Σ MOa (ativos) — sem absenteísmo e sem feristas.</b> Headcount real puro para comparação direta com o necessário.</li>
+                    <li><b>Total M.O. Necessária = Σ MOe_direta(c/ abs) + Σ MOe_indireta(c/ abs) + Feristas (⌈/12⌉).</b> Exibida como Direta / Indireta + feristas no rodapé; letra pequena mostra o acumulado sem arredondamento (2 casas, base MOb) antes do toFixed(1).</li>
                     <li><b>Status equipe:</b> DIF = Necessária − Atual. DIF&gt;+0,5 = Déficit (vermelho); DIF&lt;−0,5 = Excesso (amarelo); senão Balanceada (verde). Banda ±0,5 FTE evita ruído de arredondamento.</li>
                 </ul>
                 <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (Deloitte, Gallup): planejamentos maduros usam margem de cobertura para ausências e tratam déficit persistente como gatilho de contratação/realocação — não como hora extra estrutural; a banda ±0,5 FTE evita ruído de arredondamento.</p>
@@ -467,19 +468,19 @@
             </div>
 
             <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
-                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-user-shield mr-2 text-orange-500"></i>8. Fator de Absenteísmo e Cobertura (Turnover)</h3>
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-user-shield mr-2 text-orange-500"></i>7. Fator de Absenteísmo e Cobertura (Turnover)</h3>
                 <ul class="list-disc ml-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
                     <li><b>Conceito:</b> o MOe “na veia” é o exato para operar. Na prática há faltas, férias e treinamentos — sem margem, o S&amp;OP gera hora extra crônica.</li>
                     <li><b>Fórmula:</b> <code>MO_final = MAX(MOb;MOmin) × (1+ABS)</code> (direta) e <code>MAX(MOa;MOmin) × (1+ABS)</code> (M.O.I). Inativo ou OC=0 → 0.</li>
                     <li><b>Campo global</b> no topo do Dashboard (0–30%, default 5%). Vale para Dashboard, cards estratégicos, rodapé e CSV. Ex.: base 10,0 FTE com 5% → <b>10,5 FTE</b>.</li>
                     <li><b>Padronização:</b> usar 5–8% conforme histórico de absenteísmo da unidade; revisar trimestralmente no S&amp;OP.</li>
-                    <li><b>Feristas (ideal):</b> <code>Feristas = ⌈ Total M.O. Necessária (c/ abs.) ÷ 12 ⌉</code>. Um férias por ano diluído em 12 meses → cada 12 FTE regulares exige 1 reserva. O número entra <b>somado apenas</b> no <b>Total M.O. Necessária</b> (rodapé, cards estratégicos e organograma) — o <b>Total M.O. Atual</b> permanece sem feristas/abs. Ex.: base 38,4 FTE → +4 feristas → total necessário 42,4.</li>
+                    <li><b>Feristas (ideal):</b> <code>Feristas = ⌈ Total M.O. Necessária (c/ abs.) ÷ 12 ⌉</code>. Um férias por ano diluído em 12 meses → cada 12 FTE regulares exige 1 reserva. O número entra <b>somado apenas</b> no <b>Total M.O. Necessária</b> (rodapé, cards estratégicos e organograma) — o <b>Total M.O. Atual</b> permanece sem feristas/abs. Letra pequena no rodapé mostra o acumulado sem arredondamento (2 casas, base MOb). Ex.: base 38,4 FTE → +4 feristas → total necessário 42,4 (acum. 42,38).</li>
                 </ul>
                 <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (Gallup — engajamento × presença; Deloitte Human Capital): unidades industriais costumam provisionar 5–8% de cobertura para faltas, férias e treinamentos — o default 5% é ponto de partida; calibre com o histórico da unidade e revise no S&amp;OP trimestral.</p>
             </div>
 
             <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
-                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-random mr-2 text-purple-500"></i>9. Fator de Complexidade de Mix (Setups)</h3>
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-random mr-2 text-purple-500"></i>8. Fator de Complexidade de Mix (Setups)</h3>
                 <ul class="list-disc ml-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
                     <li><b>Conceito:</b> 1.000 t de 1 SKU ≠ 1.000 t de 20 SKUs. Trocas/limpezas param a máquina e derrubam a capacidade útil.</li>
                     <li><b>Fórmula:</b> <code>TUef = TU − SETUP(cenário)</code>, <code>CD = CR × TUef</code>. SETUP em h/dia por cenário (0–8). Se TUef=0 e há demanda → ERRO CAP.</li>
@@ -489,7 +490,7 @@
             </div>
 
             <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm mb-4">
-                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-clock mr-2 text-amber-500"></i>10. Sugestão automática de turnos (Balanceamento dinâmico)</h3>
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-3"><i class="fas fa-clock mr-2 text-amber-500"></i>9. Sugestão automática de turnos (Balanceamento dinâmico)</h3>
                 <ul class="list-disc ml-5 space-y-2 text-sm text-slate-600 dark:text-slate-300">
                     <li><b>Regra:</b> se <code>OC &gt; 100%</code> (com TUef e setup do cenário), o motor simula o próximo degrau <code>8 → 16 → 21</code> e recalcula <code>OC_next = DD/(CR×TUef_next)</code>.</li>
                     <li><b>Exibição:</b> painel âmbar sobre a tabela (“Gargalo detectado. Sugestão: abrir 2º turno…”), hint na célula Ocupação e seção por card estratégico. Se já está em 21h: “sem degrau — avaliar 4º turno/hora extra/nova linha”.</li>
@@ -499,12 +500,12 @@
             </div>
 
             <div class="bg-white dark:bg-dark-900 p-6 rounded-xl border border-slate-200 dark:border-dark-700 shadow-sm">
-                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2"><i class="fas fa-exclamation-triangle mr-2 text-yellow-500"></i>7. Premissas, limites e roadmap de padronização</h3>
+                <h3 class="text-lg font-bold text-slate-800 dark:text-white mb-2"><i class="fas fa-exclamation-triangle mr-2 text-yellow-500"></i>10. Premissas, limites e roadmap de padronização</h3>
                 <ul class="list-disc ml-5 space-y-1 text-sm text-slate-600 dark:text-slate-400">
                     <li><b>Premissas:</b> demanda uniforme em DU; EF constante; TU líquido menos setup; MO direta proporcional à OC com piso e cobertura ABS; <b>M.O.I fixa (não escala com VAR)</b>.</li>
                     <li><b>Limites conhecidos:</b> EF agregado (sem OEE); ABS único global (sem turnover por função); setup médio por cenário (sem sequência de SKUs); sem t/HH ou R$/t.</li>
-                    <li><b>Roadmap sugerido:</b> (1) OEE; (2) Takt e HH/t; (3) ABS por função; (4) matriz de setup por troca de SKU; (5) trilha de auditoria.</li>
-                    <li class="pt-1 text-xs">Engine v21-abf • Capa com plano de fundo do problema + Menu de navegação • Impressão 2 folhas + Export PDF • ABS + Setup mix + Turno automático + Feristas (MO÷12) • Parque 13 setores • MOI fixa • CSV + JSON + Reset.</li>
+                    <li><b>Roadmap sugerido:</b> (1) OEE desmembrado Disp×Perf×Qual — já em v22; (2) Custos por setor (salário diferenciado); (3) Takt e HH/t; (4) ABS por função; (5) matriz de setup por troca de SKU.</li>
+                    <li class="pt-1 text-xs">Engine v21-abf • Base Teórica 1-10 reorganizada • Capa com plano de fundo do problema + Menu • Impressão 2 folhas + Export PDF • ABS + Setup mix + Turno automático + Feristas (MO÷12, só na Necessária) + acum. sem arred. (2 casas) • Parque 13 setores • MOI fixa • CSV + JSON + Reset.</li>
                 </ul>
             </div>
         </div>
@@ -1879,6 +1880,7 @@
                 const fabC = document.getElementById('fab-count'); if (fabC) fabC.innerText = fabCount + ' selecionados';
                 document.getElementById('total-mo-calc').innerText = totalCalc.toFixed(1);
                 const absLbl = document.getElementById('total-mo-abs'); if (absLbl) absLbl.innerText = `(+${this.state.absPct}% abs. • +${feristas} feristas)`;
+                const rawEl = document.getElementById('total-mo-calc-raw'); if (rawEl) rawEl.innerText = `acum. ${totalCalc.toFixed(2)} (base ${totalCalcBase.toFixed(2)})`;
                 const ferEl = document.getElementById('total-feristas'); if (ferEl) ferEl.innerText = feristas;
 
                 const panel = document.getElementById('shift-panel');
