@@ -91,7 +91,7 @@
             #print-sheet .ps-page:last-child { page-break-after: auto; }
             #print-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
-        /* ===== Mobile only — não afeta web (desktop) ===== */
+                /* ===== Mobile only — não afeta web (desktop) ===== */
         @media (max-width: 768px) {
           header .px-6.flex.gap-1.mt-2 {
             overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -100,21 +100,31 @@
           header .px-6.flex.gap-1.mt-2::-webkit-scrollbar { display: none; }
           header .px-6.flex.gap-1.mt-2 button { flex: 0 0 auto; min-width: 88px; font-size: 11px; padding: 7px 10px; white-space: nowrap; }
           #tab-1 { padding: 8px; }
-          #tab-1 .overflow-auto { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-          #tab-1 table { min-width: 860px; }
+          #tab-1 .overflow-auto { overflow-x: auto; -webkit-overflow-scrolling: touch; max-height: 52vh !important; }
+          #tab-1 table { min-width: 860px; font-size: 10px; }
+          #tab-1 table th, #tab-1 table td { padding: 3px 2px !important; font-size: 10px !important; }
+          #tab-1 table th { font-size: 9px !important; }
+          #tab-1 table .text-xs { font-size: 10px !important; }
           #tab-1 table th:nth-child(3), #tab-1 table td:nth-child(3) {
             position: sticky; left: 0; z-index: 5; background: white;
           }
           .dark #tab-1 table th:nth-child(3), .dark #tab-1 table td:nth-child(3) { background: #0b1320; }
-          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4 .flex.justify-between,
-          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4 .flex.gap-8 {
-            flex-direction: column; align-items: stretch; gap: 10px;
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto {
+            position: static !important; padding: 8px !important; gap: 6px;
           }
-          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4 .text-center {
-            border-left: none !important; border-top: 1px solid #e2e8f0; padding-top: 10px;
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto h3 { font-size: 13px !important; margin-bottom: 2px !important; }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-3xl { font-size: 16px !important; line-height: 1.1 !important; }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-2xl { font-size: 14px !important; line-height: 1.1 !important; }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-\[11px\] { font-size: 9px !important; }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .flex.justify-between,
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .flex.gap-8 {
+            flex-direction: column; align-items: stretch; gap: 6px;
           }
-          .dark #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4 .text-center { border-top-color: #1c2c46; }
-          #tab-1 .flex.gap-4.items-center.flex-wrap { gap: 8px; }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-center {
+            border-left: none !important; border-top: 1px solid #e2e8f0; padding: 6px 0 0 0 !important;
+          }
+          .dark #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-center { border-top-color: #1c2c46; }
+          #tab-1 .flex.gap-4.items-center.flex-wrap { gap: 6px; }
           #tab-0 .grid.grid-cols-1.sm\:grid-cols-2.lg\:grid-cols-4 { grid-template-columns: 1fr 1fr; gap: 8px; }
           #tab-3 .grid.grid-cols-1.md\:grid-cols-3, #tab-4 #org-resumo { grid-template-columns: 1fr; }
         }
@@ -1999,5 +2009,6 @@
     </script>
 </body>
 </html>
+
 
 
