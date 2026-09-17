@@ -91,7 +91,7 @@
             #print-sheet .ps-page:last-child { page-break-after: auto; }
             #print-sheet * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
-                /* ===== Mobile only — não afeta web (desktop) ===== */
+                        /* ===== Mobile only — não afeta web (desktop) ===== */
         @media (max-width: 768px) {
           header .px-6.flex.gap-1.mt-2 {
             overflow-x: auto; -webkit-overflow-scrolling: touch; scrollbar-width: none;
@@ -100,30 +100,51 @@
           header .px-6.flex.gap-1.mt-2::-webkit-scrollbar { display: none; }
           header .px-6.flex.gap-1.mt-2 button { flex: 0 0 auto; min-width: 88px; font-size: 11px; padding: 7px 10px; white-space: nowrap; }
           #tab-1 { padding: 8px; }
-          #tab-1 .overflow-auto { overflow-x: auto; -webkit-overflow-scrolling: touch; max-height: 52vh !important; }
-          #tab-1 table { min-width: 860px; font-size: 10px; }
-          #tab-1 table th, #tab-1 table td { padding: 3px 2px !important; font-size: 10px !important; }
-          #tab-1 table th { font-size: 9px !important; }
-          #tab-1 table .text-xs { font-size: 10px !important; }
-          #tab-1 table th:nth-child(3), #tab-1 table td:nth-child(3) {
-            position: sticky; left: 0; z-index: 5; background: white;
-          }
+          #tab-1 .overflow-auto { overflow-x: auto; -webkit-overflow-scrolling: touch; max-height: none !important; }
+          #tab-1 table { min-width: 820px; font-size: 10px; table-layout: fixed; }
+          #tab-1 table th, #tab-1 table td { padding: 3px 2px !important; font-size: 10px !important; overflow: hidden; text-overflow: ellipsis; }
+          #tab-1 table th { font-size: 9px !important; line-height: 1.1 !important; }
+          #tab-1 table th:nth-child(1), #tab-1 table td:nth-child(1) { min-width: 32px; max-width: 32px; width: 32px; }
+          #tab-1 table th:nth-child(2), #tab-1 table td:nth-child(2) { min-width: 32px; max-width: 32px; width: 32px; }
+          #tab-1 table th:nth-child(3), #tab-1 table td:nth-child(3) { min-width: 68px; max-width: 80px; width: 68px; position: sticky; left: 0; z-index: 5; background: white; }
           .dark #tab-1 table th:nth-child(3), .dark #tab-1 table td:nth-child(3) { background: #0b1320; }
+          #tab-1 table th:nth-child(4), #tab-1 table td:nth-child(4) { min-width: 44px; width: 44px; }
+          #tab-1 table th:nth-child(5), #tab-1 table td:nth-child(5) { min-width: 40px; width: 40px; }
+          #tab-1 table th:nth-child(6), #tab-1 table td:nth-child(6) { min-width: 46px; width: 46px; }
+          #tab-1 table th:nth-child(7), #tab-1 table td:nth-child(7) { min-width: 46px; width: 46px; }
+          #tab-1 table th:nth-child(8), #tab-1 table td:nth-child(8) { min-width: 52px; width: 52px; }
+          #tab-1 table th:nth-child(9), #tab-1 table td:nth-child(9) { min-width: 68px; width: 68px; }
+          #tab-1 table th:nth-child(10), #tab-1 table td:nth-child(10) { min-width: 34px; width: 34px; }
+          #tab-1 table th:nth-child(11), #tab-1 table td:nth-child(11) { min-width: 52px; width: 52px; }
+          #tab-1 table th:nth-child(12), #tab-1 table td:nth-child(12) { min-width: 50px; width: 50px; }
+          #tab-1 table th:nth-child(13), #tab-1 table td:nth-child(13) { min-width: 46px; width: 46px; }
+          #tab-1 table th:nth-child(14), #tab-1 table td:nth-child(14) { min-width: 46px; width: 46px; }
+          #tab-1 table th:nth-child(15), #tab-1 table td:nth-child(15) { min-width: 56px; width: 56px; }
+          #tab-1 table th:nth-child(16), #tab-1 table td:nth-child(16) { min-width: 40px; width: 40px; }
+          #tab-1 table .text-xs { font-size: 10px !important; }
           #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto {
-            position: static !important; bottom: auto !important; top: auto !important; z-index: 0 !important; padding: 8px !important; gap: 6px; margin-top: 12px !important; transform: none !important;
+            position: static !important; bottom: auto !important; top: auto !important; z-index: 0 !important;
+            padding: 8px !important; gap: 6px; margin-top: 10px !important; transform: none !important;
           }
-          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto h3 { font-size: 13px !important; margin-bottom: 2px !important; }
-          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-3xl { font-size: 16px !important; line-height: 1.1 !important; }
-          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-2xl { font-size: 14px !important; line-height: 1.1 !important; }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto h3 { font-size: 12px !important; margin-bottom: 4px !important; }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-3xl { font-size: 15px !important; line-height: 1.1 !important; }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-2xl { font-size: 13px !important; line-height: 1.1 !important; }
           #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-\[11px\] { font-size: 9px !important; }
-          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .flex.justify-between,
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .flex.justify-between {
+            flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto; gap: 8px !important; align-items: flex-start !important;
+          }
           #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .flex.gap-8 {
-            flex-direction: column; align-items: stretch; gap: 6px;
+            flex-direction: row !important; flex-wrap: nowrap !important; overflow-x: auto; gap: 8px !important;
+          }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .flex.gap-8 > div,
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .flex.justify-between > div {
+            flex: 0 0 auto;
           }
           #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-center {
-            border-left: none !important; border-top: 1px solid #e2e8f0; padding: 6px 0 0 0 !important;
+            border-left: 1px solid #e2e8f0 !important; border-top: none !important; padding: 0 6px !important; min-width: 90px;
           }
-          .dark #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-center { border-top-color: #1c2c46; }
+          #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-center:first-child { border-left: none !important; }
+          .dark #tab-1 .bg-white.dark\:bg-dark-900.border.rounded-xl.p-4.mt-auto .text-center { border-left-color: #1c2c46 !important; }
           #tab-1 .flex.gap-4.items-center.flex-wrap { gap: 6px; }
           #tab-0 .grid.grid-cols-1.sm\:grid-cols-2.lg\:grid-cols-4 { grid-template-columns: 1fr 1fr; gap: 8px; }
           #tab-3 .grid.grid-cols-1.md\:grid-cols-3, #tab-4 #org-resumo { grid-template-columns: 1fr; }
@@ -2009,6 +2030,7 @@
     </script>
 </body>
 </html>
+
 
 
 
