@@ -246,10 +246,10 @@
                             <label class="text-xs font-bold text-orange-600 dark:text-yellow-400"><i class="fas fa-user-shield mr-1"></i>Absenteísmo (%):</label>
                             <input type="number" id="input-abs" value="5" min="0" max="30" step="0.5" class="w-16 border border-orange-300 dark:border-yellow-600 bg-white dark:bg-dark-950 text-orange-700 dark:text-yellow-400 rounded px-1 py-1 text-sm text-center font-bold disabled:bg-slate-100 disabled:dark:bg-dark-900 disabled:opacity-50" onchange="app.updateGlobalVars()" disabled>
                         </div>
-                        <div class="flex items-center gap-2 border-l border-slate-300 dark:border-dark-700 pl-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5 border border-amber-200 dark:border-amber-600/50" title="Feristas ideais = ⌈ Total M.O. Necessária ÷ 12 ⌉. O número é SOMADO apenas ao Total M.O. Necessária.">
-                            <label class="text-xs font-bold text-amber-700 dark:text-amber-300"><i class="fas fa-umbrella-beach mr-1"></i>Feristas:</label>
+                        <div class="flex items-center gap-2 border-l border-slate-300 dark:border-dark-700 pl-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-1.5 border border-amber-200 dark:border-amber-600/50" title="Feristas ideais = ⌈ Total M.O. Necessária ÷ 12 ⌉. Se marcado, soma ao Total Necessária; se desmarcado, não contabiliza.">
+                            <label class="flex items-center gap-1 text-xs font-bold text-amber-700 dark:text-amber-300 cursor-pointer"><input type="checkbox" id="flag-feristas" checked onchange="app.toggleFeristas()" class="w-3 h-3 accent-amber-600"><i class="fas fa-umbrella-beach"></i>Feristas:</label>
                             <span id="total-feristas" class="text-lg font-black text-amber-700 dark:text-amber-300">0</span>
-                            <span class="text-[9px] text-amber-500 dark:text-amber-400 leading-tight">(MO÷12) soma aos totais</span>
+                            <span class="text-[9px] text-amber-500 dark:text-amber-400 leading-tight">(MO÷12)</span>
                         </div>
                     </div>
                     <div class="flex gap-4 items-center flex-wrap border-t border-slate-200 dark:border-dark-700 pt-2">
@@ -292,7 +292,7 @@
                                 <th title="OC = DD/CD×100. <85% normal, 85–95% atenção, >95% gargalo. Ver §3.6" class="px-1 py-3 w-20 bg-slate-200 dark:bg-dark-800 leading-tight text-red-600 dark:text-neon-alert">Ocup.</th>
                                 <th title="MOa: headcount real hoje (FTE)" class="px-1 py-3 w-16 border-l border-slate-300 dark:border-dark-700 bg-slate-100 dark:bg-dark-950 leading-tight">MO Atual</th>
                                 <th title="MOmin: piso físico/segurança. MOe = MAX(MOb;MOmin). Ver §1" class="px-1 py-3 w-16 border-l border-slate-300 dark:border-dark-700 bg-orange-50 dark:bg-dark-800 leading-tight text-orange-700 dark:text-yellow-400">MO Mín.</th>
-                                <th title="MOe direta = MAX(MOa×OC/100;MOmin)×(1+ABS); MOe indireta FIXA = MAX(MOa;MOmin)×(1+ABS). Ver §3.7–4 e §8" class="px-1 py-3 w-24 bg-blue-50 dark:bg-dark-950 leading-tight border-l border-blue-200 dark:border-dark-700 text-blue-700 dark:text-neon-blue dark:glow-text-blue">MO Calc.</th>
+                                <th title="MOe direta = MAX(MOa×OC/100;MOmin)×(1+ABS); MOe indireta FIXA = MAX(MOa;MOmin)×(1+ABS). Ver §3.7–4 e §8 — desmarque Piso para ver sem MAX/arredondamento" class="px-1 py-2 w-24 bg-blue-50 dark:bg-dark-950 leading-tight border-l border-blue-200 dark:border-dark-700 text-blue-700 dark:text-neon-blue dark:glow-text-blue">MO Calc.<br><label class="flex items-center justify-center gap-1 text-[9px] normal-case font-normal cursor-pointer mt-1"><input type="checkbox" id="flag-piso" checked onchange="app.togglePiso()" class="w-3 h-3 accent-blue-600">Piso</label></th>
                                 <th class="px-1 py-3 w-12 border-l border-slate-300 dark:border-dark-700 bg-slate-100 dark:bg-dark-950">Ações</th>
                             </tr>
                         </thead>
@@ -602,6 +602,8 @@
                 varC3: 25,
                 absPct: 5,
                 setupC1: 0, setupC2: 0, setupC3: 1,
+                usarPiso: true,
+                usarFeristas: true,
                 editingId: null,
                 data: JSON.parse(JSON.stringify(DEFAULT_PARK)),
                 nextId: 14
@@ -633,7 +635,8 @@
                     varC2: this.state.varC2,
                     varC3: this.state.varC3,
                     absPct: this.state.absPct,
-                    setupC1: this.state.setupC1, setupC2: this.state.setupC2, setupC3: this.state.setupC3
+                    setupC1: this.state.setupC1, setupC2: this.state.setupC2, setupC3: this.state.setupC3,
+                    usarPiso: this.state.usarPiso, usarFeristas: this.state.usarFeristas
                 };
                 try { localStorage.setItem('leanSopDashboard_V21', JSON.stringify(dataToSave)); } catch(e){}
                 // Supabase (se configurado): salva na nuvem sem bloquear a UI
@@ -824,6 +827,10 @@
                         if (parsed.varC3 !== undefined) this.state.varC3 = parsed.varC3;
                         if (parsed.absPct !== undefined) this.state.absPct = Math.min(30, Math.max(0, Number(parsed.absPct) || 0));
                         ['setupC1','setupC2','setupC3'].forEach(k => { if (parsed[k] !== undefined) this.state[k] = Math.min(8, Math.max(0, Number(parsed[k]) || 0)); });
+                        if (parsed.usarPiso !== undefined) this.state.usarPiso = !!parsed.usarPiso;
+                        if (parsed.usarFeristas !== undefined) this.state.usarFeristas = !!parsed.usarFeristas;
+                        const flagPisoEl = document.getElementById('flag-piso'); if (flagPisoEl) flagPisoEl.checked = this.state.usarPiso;
+                        const flagFerEl = document.getElementById('flag-feristas'); if (flagFerEl) flagFerEl.checked = this.state.usarFeristas;
                         
                         document.getElementById('input-var-c2').value = this.state.varC2;
                         document.getElementById('input-var-c3').value = this.state.varC3;
@@ -953,6 +960,10 @@
                 });
                 this.render();
             },
+
+            togglePiso() { this.state.usarPiso = document.getElementById('flag-piso')?.checked ?? true; this.render(); },
+
+            toggleFeristas() { this.state.usarFeristas = document.getElementById('flag-feristas')?.checked ?? true; this.render(); },
 
             updateGlobalVars() {
                 this.state.varC2 = parseFloat(document.getElementById('input-var-c2').value) || 0;
@@ -1263,8 +1274,8 @@
                     }
                     
                     if (row.tipo === 'Indireto') {
-                        // MOI FIXA v21-fix + cobertura de absenteísmo
-                        moInd += Math.max(row.moAtual, row.moMinima || 0) * absF;
+                        // MOI FIXA: respeita flag Piso
+                        moInd += (this.state.usarPiso ? Math.max(row.moAtual, row.moMinima || 0) : row.moAtual) * absF;
                     } else {
                         let capReal = row.capNominal * (row.eficiencia / 100);
                         let tuEff = Math.max(0, (Number(row.tempoUtil) || 0) - setup);
@@ -1274,8 +1285,8 @@
                         let ocupacao = capDiaria > 0 ? (demDiaria / capDiaria) * 100 : (demandaCenario > 0 ? Infinity : 0);
                         
                         let calcBruto = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : row.moAtual;
-                        if (!isFinite(ocupacao) && demandaCenario > 0) calcBruto = Math.max(row.moAtual, row.moMinima || 0);
-                        moDir += (ocupacao > 0) ? Math.max(calcBruto, row.moMinima || 0) * absF : 0;
+                        if (!isFinite(ocupacao) && demandaCenario > 0) calcBruto = this.state.usarPiso ? Math.max(row.moAtual, row.moMinima || 0) : row.moAtual;
+                        moDir += (ocupacao > 0) ? (this.state.usarPiso ? Math.max(calcBruto, row.moMinima || 0) : calcBruto) * absF : 0;
 
                         if (ocupacao > LIMITE_GARGALO) gargalos.push({ name: row.name, oc: ocupacao });
                         const sg = this.suggestShift(row, scenarioNum, variation);
@@ -1292,7 +1303,7 @@
                 let moAtualTotal = this.state.data.reduce((acc, r) => acc + (r.ativoC1 ? r.moAtual : 0), 0);
                 
                 const generateCard = (title, variationLabel, state, bgHeader, borderCol) => {
-                    const ferCard = Math.ceil(state.total / 12);
+                    const ferCard = this.state.usarFeristas ? Math.ceil(state.total / 12) : 0;
                     const totalExib = state.total + ferCard;
                     const diff = totalExib - moAtualTotal;
                     let diffHtml = diff > 0.5 ? `<span class="text-red-700 dark:text-neon-alert font-bold bg-red-100 dark:bg-red-900/40 px-2 py-1 rounded text-sm border border-red-200 dark:border-red-500"><i class="fas fa-arrow-up"></i> ${diff.toFixed(1)} vagas</span>`
@@ -1315,7 +1326,7 @@
                         sugHtml = `<p class="text-sm text-slate-500 italic mt-2">Sem necessidade de turno extra (nenhum OC&gt;100%).</p>`;
                     }
 
-                    return `<div class="bg-white dark:bg-dark-900 rounded-xl shadow-sm dark:shadow-lg border border-slate-200 dark:border-dark-700 overflow-hidden flex flex-col"><div class="${bgHeader} p-4 border-b ${borderCol}"><h3 class="font-bold text-lg text-slate-800 dark:text-white">${title}</h3><p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">${variationLabel}</p></div><div class="p-5 flex-grow flex flex-col gap-4"><div class="flex justify-between items-end border-b pb-3 border-slate-100 dark:border-dark-700"><div><p class="text-xs uppercase font-bold text-slate-500">Total Necessário (c/ abs.)</p><p class="text-3xl font-black text-slate-700 dark:text-slate-200">${totalExib.toFixed(1)}</p><p class="text-[11px] font-bold text-amber-600 dark:text-amber-300 mt-0.5">incl. +${ferCard} feristas</p></div><div class="pb-1">${diffHtml}</div></div><div class="grid grid-cols-2 gap-2 text-sm border-b pb-3 border-slate-100 dark:border-dark-700"><div class="bg-slate-50 dark:bg-dark-950 p-2 rounded text-center border border-slate-100 dark:border-dark-700"><p class="text-[10px] uppercase font-bold text-slate-500">M.O. Direta</p><p class="font-bold text-blue-600 dark:text-neon-blue">${state.moDir.toFixed(1)}</p></div><div class="bg-slate-50 dark:bg-dark-950 p-2 rounded text-center border border-slate-100 dark:border-dark-700"><p class="text-[10px] uppercase font-bold text-slate-500">M.O. Indireta</p><p class="font-bold text-green-600 dark:text-neon-green">${state.moInd.toFixed(1)}</p></div></div>${validacoesHtml ? `<div class="border-b pb-3 border-slate-100 dark:border-dark-700 flex flex-col">${validacoesHtml}</div>` : ''}<div><p class="text-xs uppercase font-bold text-slate-500 dark:text-slate-400 mb-1"><i class="fas fa-fire mr-1 text-red-500 dark:text-neon-alert"></i> Tambor (Gargalos >95%)</p>${gargalosHtml}</div><div><p class="text-xs uppercase font-bold text-slate-500 dark:text-slate-400 mb-1"><i class="fas fa-clock mr-1 text-amber-500"></i> Sugestão de turnos (OC&gt;100%)</p>${sugHtml}</div></div></div>`;
+                    return `<div class="bg-white dark:bg-dark-900 rounded-xl shadow-sm dark:shadow-lg border border-slate-200 dark:border-dark-700 overflow-hidden flex flex-col"><div class="${bgHeader} p-4 border-b ${borderCol}"><h3 class="font-bold text-lg text-slate-800 dark:text-white">${title}</h3><p class="text-xs font-medium text-slate-500 dark:text-slate-400 mt-1">${variationLabel}</p></div><div class="p-5 flex-grow flex flex-col gap-4"><div class="flex justify-between items-end border-b pb-3 border-slate-100 dark:border-dark-700"><div><p class="text-xs uppercase font-bold text-slate-500">Total Necessário (c/ abs.)</p><p class="text-3xl font-black text-slate-700 dark:text-slate-200">${totalExib.toFixed(1)}</p><p class="text-[11px] font-bold text-amber-600 dark:text-amber-300 mt-0.5">${this.state.usarFeristas ? `incl. +${ferCard} feristas` : `sem feristas`}</p></div><div class="pb-1">${diffHtml}</div></div><div class="grid grid-cols-2 gap-2 text-sm border-b pb-3 border-slate-100 dark:border-dark-700"><div class="bg-slate-50 dark:bg-dark-950 p-2 rounded text-center border border-slate-100 dark:border-dark-700"><p class="text-[10px] uppercase font-bold text-slate-500">M.O. Direta</p><p class="font-bold text-blue-600 dark:text-neon-blue">${state.moDir.toFixed(1)}</p></div><div class="bg-slate-50 dark:bg-dark-950 p-2 rounded text-center border border-slate-100 dark:border-dark-700"><p class="text-[10px] uppercase font-bold text-slate-500">M.O. Indireta</p><p class="font-bold text-green-600 dark:text-neon-green">${state.moInd.toFixed(1)}</p></div></div>${validacoesHtml ? `<div class="border-b pb-3 border-slate-100 dark:border-dark-700 flex flex-col">${validacoesHtml}</div>` : ''}<div><p class="text-xs uppercase font-bold text-slate-500 dark:text-slate-400 mb-1"><i class="fas fa-fire mr-1 text-red-500 dark:text-neon-alert"></i> Tambor (Gargalos >95%)</p>${gargalosHtml}</div><div><p class="text-xs uppercase font-bold text-slate-500 dark:text-slate-400 mb-1"><i class="fas fa-clock mr-1 text-amber-500"></i> Sugestão de turnos (OC&gt;100%)</p>${sugHtml}</div></div></div>`;
                 };
 
                 const lbl = (v, s, c) => `Demanda: ${v > 0 ? '+' : ''}${v}% • Setup: ${s}h/dia • Abs: ${this.state.absPct}%${c ? ' • ' + c : ''}`;
@@ -1364,7 +1375,7 @@
                 const setupLbl = `Setups C1/C2/C3: ${this.state.setupC1}/${this.state.setupC2}/${this.state.setupC3} h/dia · Absenteísmo: ${this.state.absPct}%`;
 
                 const psCard = (title, state) => {
-                    const fer = Math.ceil(state.total / 12);
+                    const fer = this.state.usarFeristas ? Math.ceil(state.total / 12) : 0;
                     const totalEx = state.total + fer;
                     const atualEx = atualTotal;
                     const diff = totalEx - atualEx;
@@ -1451,7 +1462,7 @@
                 doc.setFont('helvetica', 'normal');
                 cards.forEach(([title, st], i) => {
                     const x = 14 + i * (cw + 5);
-                    const fer = Math.ceil(st.total / 12);
+                    const fer = this.state.usarFeristas ? Math.ceil(st.total / 12) : 0;
                     const totalEx = st.total + fer;
                     const atualEx = atualTotal;
                     const diff = totalEx - atualEx;
@@ -1549,8 +1560,8 @@
                 if (isAtivo) {
                     if (isIndireto) {
                         mob = row.moAtual;
-                        moe = Math.max(mob, row.moMinima || 0) * absF;
-                        usouPiso = mob < (row.moMinima || 0);
+                        moe = (this.state.usarPiso ? Math.max(mob, row.moMinima || 0) : mob) * absF;
+                        usouPiso = this.state.usarPiso && mob < (row.moMinima || 0);
                     } else {
                         capReal = row.capNominal * (row.eficiencia / 100);
                         const tuEff = Math.max(0, (Number(row.tempoUtil) || 0) - setupCur);
@@ -1559,8 +1570,8 @@
                         const dias = Math.max(1, row.diasUteis || 1);
                         demDiaria = dc / dias;
                         ocupacao = capDiaria > 0 ? (demDiaria / capDiaria) * 100 : (dc > 0 ? Infinity : 0);
-                        mob = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : Math.max(row.moAtual, row.moMinima || 0);
-                        if (ocupacao > 0) { moe = Math.max(mob, row.moMinima || 0) * absF; usouPiso = mob < (row.moMinima || 0) && (row.moMinima || 0) > 0; }
+                        mob = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : (this.state.usarPiso ? Math.max(row.moAtual, row.moMinima || 0) : row.moAtual);
+                        if (ocupacao > 0) { moe = (this.state.usarPiso ? Math.max(mob, row.moMinima || 0) : mob) * absF; usouPiso = this.state.usarPiso && mob < (row.moMinima || 0) && (row.moMinima || 0) > 0; }
                     }
                 }
 
@@ -1586,9 +1597,13 @@
                 <div class="flex justify-between mt-1 text-[8px] uppercase tracking-wider text-slate-400"><span>mín ${(row.moMinima || 0).toFixed(0)}</span><span>atual ${row.moAtual}</span><span class="text-green-600 dark:text-neon-green font-bold">calc ${moe.toFixed(1)}</span></div>`;
 
                 const moTooltip = isIndireto
-                    ? `M.O.I fixa: MAX(MOa ${row.moAtual}; MOmin ${row.moMinima || 0}) × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE`
+                    ? (this.state.usarPiso
+                        ? `M.O.I fixa: MAX(MOa ${row.moAtual}; MOmin ${row.moMinima || 0}) × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE`
+                        : `M.O.I: MOa ${row.moAtual} × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE (sem piso)`)
                     : (isAtivo
-                        ? `MOb = MOa ${row.moAtual} × OC ${isFinite(ocupacao) ? ocupacao.toFixed(1) + '%' : '(ERRO CAP)'} = ${mob.toFixed(2)} → MAX(MOb; piso ${row.moMinima || 0})${usouPiso ? ' (piso prevalece)' : ''} → ${(Math.max(mob, row.moMinima || 0)).toFixed(2)} × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE`
+                        ? (this.state.usarPiso
+                            ? `MOb = MOa ${row.moAtual} × OC ${isFinite(ocupacao) ? ocupacao.toFixed(1) + '%' : '(ERRO CAP)'} = ${mob.toFixed(2)} → MAX(MOb; piso ${row.moMinima || 0})${usouPiso ? ' (piso prevalece)' : ''} → ${(Math.max(mob, row.moMinima || 0)).toFixed(2)} × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE`
+                            : `MOb = MOa ${row.moAtual} × OC ${isFinite(ocupacao) ? ocupacao.toFixed(1) + '%' : '(ERRO CAP)'} = ${mob.toFixed(2)} × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE (sem piso)`)
                         : 'Inativo no cenário: M.O. zerada.');
 
                 const infoLine = !isAtivo
@@ -1661,7 +1676,7 @@
                 if (resumo) {
                     const st = this.calculateScenarioState(variation, sc);
                     const atualTotal = this.state.data.reduce((acc, r) => acc + (r[`ativoC${sc}`] ? r.moAtual : 0), 0);
-                    const ferOrg = Math.ceil(st.total / 12);
+                    const ferOrg = this.state.usarFeristas ? Math.ceil(st.total / 12) : 0;
                     const totAtualOrg = atualTotal;
                     const totNecessOrg = st.total + ferOrg;
                     const dif = totNecessOrg - totAtualOrg;
@@ -1670,7 +1685,7 @@
                     const difHtml = dif > 0.5 ? chip('Δ FTE (Calc − Atual)', '▲ +' + dif.toFixed(1), 'text-red-600 dark:text-neon-alert', 'Déficit: contratar') : dif < -0.5 ? chip('Δ FTE (Calc − Atual)', '▼ ' + dif.toFixed(1), 'text-yellow-600 dark:text-yellow-400', 'Excesso: realocar') : chip('Δ FTE (Calc − Atual)', '● 0.0', 'text-green-600 dark:text-neon-green', 'Equilibrado');
                     resumo.innerHTML = [
                         chip('Total M.O. Atual', totAtualOrg, 'text-blue-600 dark:text-neon-blue', 'sem feristas/abs'),
-                        chip('Total Necessária (c/ abs.)', totNecessOrg.toFixed(1), 'text-slate-800 dark:text-slate-200', 'Direta ' + st.moDir.toFixed(1) + ' + Indir. ' + st.moInd.toFixed(1) + ' + ' + ferOrg + ' feristas'),
+                        chip('Total Necessária (c/ abs.)', totNecessOrg.toFixed(1), 'text-slate-800 dark:text-slate-200', 'Direta ' + st.moDir.toFixed(1) + ' + Indir. ' + st.moInd.toFixed(1) + (this.state.usarFeristas ? ' + ' + ferOrg + ' feristas' : '')),
                         difHtml,
                         chip('Contexto', 'Cenário ' + sc, 'text-purple-600 dark:text-purple-300', varLbl + ' • Setup ' + setupCur + 'h • Abs ' + this.state.absPct + '%')
                     ].join('');
@@ -1782,9 +1797,13 @@
 
                     const moDelta = isAtivo ? moCalcEfetivo - row.moAtual : 0;
                     const moTooltip = isIndireto
-                        ? `M.O.I fixa: MAX(MOa ${row.moAtual}; MOmin ${row.moMinima||0}) x ${absF.toFixed(2)} = ${moCalcEfetivo.toFixed(1)} FTE (+${this.state.absPct}% abs.)`
+                        ? (this.state.usarPiso
+                            ? `M.O.I fixa: MAX(MOa ${row.moAtual}; MOmin ${row.moMinima||0}) x ${absF.toFixed(2)} = ${moCalcEfetivo.toFixed(1)} FTE (+${this.state.absPct}% abs.)`
+                            : `M.O.I: MOa ${row.moAtual} x ${absF.toFixed(2)} = ${moCalcSemMin.toFixed(1)} FTE (+${this.state.absPct}% abs., sem piso)`)
                         : (isAtivo
-                            ? `MOb = MOa ${row.moAtual} x OC ${isFinite(ocupacao) ? ocupacao.toFixed(1)+'%' : '(ERRO CAP)'} = ${moCalcBruto.toFixed(2)} -> MAX(MOb; piso ${row.moMinima||0})${usouPiso?' (piso prevalece)':''} = ${Math.max(moCalcBruto,row.moMinima||0).toFixed(2)} x ${absF.toFixed(2)} = ${moCalcEfetivo.toFixed(1)} FTE (c/ abs.)`
+                            ? (this.state.usarPiso
+                                ? `MOb = MOa ${row.moAtual} x OC ${isFinite(ocupacao) ? ocupacao.toFixed(1)+'%' : '(ERRO CAP)'} = ${moCalcBruto.toFixed(2)} -> MAX(MOb; piso ${row.moMinima||0})${usouPiso?' (piso prevalece)':''} = ${Math.max(moCalcBruto,row.moMinima||0).toFixed(2)} x ${absF.toFixed(2)} = ${moCalcEfetivo.toFixed(1)} FTE (c/ abs.)`
+                                : `MOb = MOa ${row.moAtual} x OC ${isFinite(ocupacao) ? ocupacao.toFixed(1)+'%' : '(ERRO CAP)'} = ${moCalcBruto.toFixed(2)} x ${absF.toFixed(2)} = ${moCalcSemMin.toFixed(1)} FTE (c/ abs., sem piso)`)
                             : 'Inativo com demanda > 0: M.O. zerada (Parado).');
                     const deltaUI = isAtivo
                         ? (moDelta > 0.1 ? `<span class="text-[10px] font-bold text-red-600 dark:text-neon-alert mt-0.5">&#9650; +${moDelta.toFixed(1)}</span>`
@@ -1851,10 +1870,10 @@
                         <td class="px-1 py-1 w-24 text-center border-l border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-950">
                             <div class="flex flex-col items-center justify-center" title="${moTooltip}">
                                 <div class="rounded py-0.5 px-1 border ${moClass} text-sm w-10 text-center shrink-0 font-black">
-                                    ${isAtivo ? moCalcEfetivo.toFixed(1) : '<span class="text-slate-400 dark:text-slate-600 text-xs">0.0</span>'}
+                                    ${isAtivo ? (this.state.usarPiso ? moCalcEfetivo : moCalcSemMin).toFixed(1) : '<span class="text-slate-400 dark:text-slate-600 text-xs">0.0</span>'}
                                 </div>
                                 ${mobLine}
-                                ${isAtivo && usouPiso ? `<span class="text-[9px] text-orange-600 dark:text-yellow-400 font-bold mt-0.5 uppercase tracking-tighter">(Piso)</span>` : ''}
+                                ${isAtivo && this.state.usarPiso && usouPiso ? `<span class="text-[9px] text-orange-600 dark:text-yellow-400 font-bold mt-0.5 uppercase tracking-tighter">(Piso)</span>` : ''}
                                 ${isAtivo && Number(this.state.absPct) > 0 ? `<span class="text-[9px] text-slate-400 leading-none">+${this.state.absPct}%</span>` : ''}
                                 ${deltaUI}
                             </div>
@@ -1872,11 +1891,13 @@
                     tbody.appendChild(tr);
                 });
 
-                document.getElementById('ft-dir').innerText = totalMoCalcDir.toFixed(1);
-                document.getElementById('ft-ind').innerText = totalMoCalcInd.toFixed(1);
-                const totalCalcBase = totalMoCalcDir + totalMoCalcInd;
-                const totalSemMinBase = totalMoCalcDirSemMin + totalMoCalcIndSemMin;
-                const feristas = Math.ceil(totalCalcBase / 12);
+                document.getElementById('ft-dir').innerText = (this.state.usarPiso ? totalMoCalcDir : totalMoCalcDirSemMin).toFixed(1);
+                document.getElementById('ft-ind').innerText = (this.state.usarPiso ? totalMoCalcInd : totalMoCalcIndSemMin).toFixed(1);
+                const baseComPiso = totalMoCalcDir + totalMoCalcInd;
+                const baseSemPiso = totalMoCalcDirSemMin + totalMoCalcIndSemMin;
+                const totalCalcBase = this.state.usarPiso ? baseComPiso : baseSemPiso;
+                const totalSemMinBase = baseSemPiso;
+                const feristas = this.state.usarFeristas ? Math.ceil(totalCalcBase / 12) : 0;
                 const totalCalc = totalCalcBase + feristas;
                 const totalAtualDisp = totalMoAtual;
                 document.getElementById('total-mo-atual').innerText = totalAtualDisp;
@@ -1886,8 +1907,14 @@
                 const fabM = document.getElementById('fab-cap-mensal'); if (fabM) fabM.innerText = fabMensal.toFixed(0) + ' t/mês';
                 const fabC = document.getElementById('fab-count'); if (fabC) fabC.innerText = fabCount + ' selecionados';
                 document.getElementById('total-mo-calc').innerText = totalCalc.toFixed(1);
-                const absLbl = document.getElementById('total-mo-abs'); if (absLbl) absLbl.innerText = `(+${this.state.absPct}% abs. • +${feristas} feristas)`;
-                const semMinEl = document.getElementById('total-mo-calc-sem-min'); if (semMinEl) semMinEl.innerText = `sem piso: ${totalSemMinBase.toFixed(1)}`;
+                const absLbl = document.getElementById('total-mo-abs'); if (absLbl) {
+                    const ferTxt = this.state.usarFeristas ? ` • +${feristas} feristas` : '';
+                    absLbl.innerText = `(+${this.state.absPct}% abs.${ferTxt})`;
+                }
+                const semMinEl = document.getElementById('total-mo-calc-sem-min'); if (semMinEl) {
+                    if (this.state.usarPiso) semMinEl.innerText = `sem piso: ${baseSemPiso.toFixed(1)}`;
+                    else semMinEl.innerText = `com piso: ${baseComPiso.toFixed(1)}`;
+                }
                 const ferEl = document.getElementById('total-feristas'); if (ferEl) ferEl.innerText = feristas;
 
                 const panel = document.getElementById('shift-panel');
@@ -1945,4 +1972,5 @@
     </script>
 </body>
 </html>
+
 
