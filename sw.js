@@ -1,4 +1,4 @@
-const CACHE = 'sop-capacidade-v21-abf-1';
+﻿const CACHE = 'sop-capacidade-v21-abf-2';
 const ASSETS = ['index.html', 'manifest.json', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png'];
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)).then(()=>self.skipWaiting()));
@@ -15,3 +15,4 @@ self.addEventListener('fetch', e => {
     return r;
   }).catch(()=> hit)));
 });
+
