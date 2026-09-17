@@ -341,7 +341,7 @@
                             <p class="text-xs text-slate-500 uppercase font-bold">Total M.O. Necessária</p>
                             <p class="text-3xl font-black text-blue-600 dark:text-neon-blue dark:glow-text-blue" id="total-mo-calc">0.0</p>
                             <p class="text-[11px] text-orange-600 dark:text-yellow-400 font-semibold" id="total-mo-abs">(+5% abs.)</p>
-                            <p class="text-[9px] text-slate-400 font-mono" id="total-mo-calc-raw" title="Acumulado sem arredondamento, baseado na ocupação (MOb) antes do toFixed(1)">acum. 0.00</p>
+                            <p class="text-[11px] text-slate-500 font-semibold" id="total-mo-calc-sem-min" title="Total sem o acréscimo e arredondamento da M.O. mínima — só MOb×(1+ABS), sem MAX(MOb;Mín)">sem piso: 0.0</p>
                         </div>
                         <div class="text-center flex flex-col justify-center min-w-[180px] border-l border-slate-200 dark:border-dark-700 pl-4">
                             <div id="status-equipe" class="px-3 py-2 rounded text-sm font-bold border"></div>
@@ -1692,7 +1692,7 @@
                 const tbody = document.getElementById('table-body');
                 tbody.innerHTML = '';
                 
-                let totalMoAtual = 0, totalMoCalcDir = 0, totalMoCalcInd = 0;
+                let totalMoAtual = 0, totalMoCalcDir = 0, totalMoCalcInd = 0, totalMoCalcDirSemMin = 0, totalMoCalcIndSemMin = 0;
                 let fabDiaria = 0, fabMensal = 0, fabCount = 0;
                 const currentScenario = this.state.activeScenario;
                 const variation = this.getVariation();
@@ -1705,7 +1705,7 @@
                     const isIndireto = row.tipo === 'Indireto';
                     const isAtivo = row[`ativoC${currentScenario}`];
                     
-                    let capReal = 0, capDiaria = 0, demDiaria = 0, ocupacao = 0, moCalcBruto = 0, moCalcEfetivo = 0, tuEff = 0;
+                    let capReal = 0, capDiaria = 0, demDiaria = 0, ocupacao = 0, moCalcBruto = 0, moCalcEfetivo = 0, moCalcSemMin = 0, tuEff = 0;
                     let usouPiso = false;
 
                     if (isIndireto) {
@@ -1713,7 +1713,9 @@
                             // MOI FIXA: VAR não impacta; aplica cobertura de absenteísmo
                             moCalcBruto = row.moAtual;
                             moCalcEfetivo = Math.max(moCalcBruto, row.moMinima || 0) * absF;
+                            moCalcSemMin = moCalcBruto * absF;
                             usouPiso = moCalcBruto < row.moMinima && row.moMinima > 0;
+                            totalMoCalcIndSemMin += moCalcSemMin;
                         }
                         totalMoCalcInd += moCalcEfetivo;
                     } else {
@@ -1729,8 +1731,12 @@
                             moCalcBruto = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : Math.max(row.moAtual, row.moMinima || 0);
                             if(ocupacao > 0) {
                                 moCalcEfetivo = Math.max(moCalcBruto, row.moMinima || 0) * absF;
+                                moCalcSemMin = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) * absF : 0;
                                 usouPiso = moCalcBruto < row.moMinima && row.moMinima > 0;
+                            } else {
+                                moCalcSemMin = 0;
                             }
+                            totalMoCalcDirSemMin += moCalcSemMin;
                             const sg = this.suggestShift(row, currentScenario, variation);
                             if (sg) shiftSuggest.push({ id: row.id, name: row.name, ...sg });
                         }
@@ -1869,6 +1875,7 @@
                 document.getElementById('ft-dir').innerText = totalMoCalcDir.toFixed(1);
                 document.getElementById('ft-ind').innerText = totalMoCalcInd.toFixed(1);
                 const totalCalcBase = totalMoCalcDir + totalMoCalcInd;
+                const totalSemMinBase = totalMoCalcDirSemMin + totalMoCalcIndSemMin;
                 const feristas = Math.ceil(totalCalcBase / 12);
                 const totalCalc = totalCalcBase + feristas;
                 const totalAtualDisp = totalMoAtual;
@@ -1880,7 +1887,7 @@
                 const fabC = document.getElementById('fab-count'); if (fabC) fabC.innerText = fabCount + ' selecionados';
                 document.getElementById('total-mo-calc').innerText = totalCalc.toFixed(1);
                 const absLbl = document.getElementById('total-mo-abs'); if (absLbl) absLbl.innerText = `(+${this.state.absPct}% abs. • +${feristas} feristas)`;
-                const rawEl = document.getElementById('total-mo-calc-raw'); if (rawEl) rawEl.innerText = `acum. ${totalCalc.toFixed(2)} (base ${totalCalcBase.toFixed(2)})`;
+                const semMinEl = document.getElementById('total-mo-calc-sem-min'); if (semMinEl) semMinEl.innerText = `sem piso: ${totalSemMinBase.toFixed(1)}`;
                 const ferEl = document.getElementById('total-feristas'); if (ferEl) ferEl.innerText = feristas;
 
                 const panel = document.getElementById('shift-panel');
