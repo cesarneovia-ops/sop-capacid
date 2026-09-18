@@ -1019,7 +1019,7 @@
                 this.render();
             },
 
-            togglePiso() { this.state.usarPiso = document.getElementById('flag-piso')?.checked ?? true; this.render(); },
+            togglePiso() { this.state.usarPiso = document.getElementById('flag-piso')?.checked ?? true; this.state.data.forEach(r => { delete r.usarPiso; }); this.render(); },
 
             // Piso individual por setor: só vale enquanto o flag da coluna está ligado (coluna sobrepõe setor)
             usePisoFor(row) {
