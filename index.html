@@ -1021,15 +1021,17 @@
 
             togglePiso() { this.state.usarPiso = document.getElementById('flag-piso')?.checked ?? true; this.render(); },
 
-            // Piso individual por setor: herda o flag global enquanto não explicitamente marcado
+            // Piso individual por setor: só vale enquanto o flag da coluna está ligado (coluna sobrepõe setor)
             usePisoFor(row) {
-                return (row && row.usarPiso !== undefined && row.usarPiso !== null) ? !!row.usarPiso : !!this.state.usarPiso;
+                if (!this.state.usarPiso) return false;
+                return (row && row.usarPiso !== undefined && row.usarPiso !== null) ? !!row.usarPiso : true;
             },
 
             togglePisoSector(id) {
+                if (!this.state.usarPiso) return;
                 const row = this.state.data.find(r => r.id === id);
                 if (!row) return;
-                row.usarPiso = document.getElementById('flag-piso-' + id)?.checked ?? this.state.usarPiso;
+                row.usarPiso = document.getElementById('flag-piso-' + id)?.checked ?? true;
                 this.render();
             },
 
@@ -1946,9 +1948,9 @@
                                     <div class="rounded py-0.5 px-1 border ${moClass} text-sm w-10 text-center shrink-0 font-black">
                                         ${isAtivo ? (usePisoRow ? moCalcEfetivo : moCalcSemMin).toFixed(1) : '<span class="text-slate-400 dark:text-slate-600 text-xs">0.0</span>'}
                                     </div>
-                                    <label class="flex items-center justify-center gap-0.5 text-[8px] text-slate-400 dark:text-slate-500 cursor-pointer select-none whitespace-nowrap" title="Piso individual: mesma função do flag Piso do título, aplicado apenas a este setor.">
-                                        <input type="checkbox" id="flag-piso-${row.id}" onchange="app.togglePisoSector(${row.id})" ${usePisoRow ? 'checked' : ''} class="w-3 h-3 accent-blue-600">Piso
-                                    </label>
+<label class="flex items-center justify-center gap-0.5 text-[8px] ${this.state.usarPiso ? 'text-slate-400 dark:text-slate-500 cursor-pointer' : 'text-slate-300 dark:text-slate-600 select-none'} mt-0.5 select-none whitespace-nowrap" title="Piso individual: mesmo comportamento do flag da coluna, aplicado apenas a este setor. Só vale com o flag Piso da coluna ligado (o da coluna sempre sobrepõe).">
+                                    <input type="checkbox" id="flag-piso-${row.id}" onchange="app.togglePisoSector(${row.id})" ${usePisoRow ? 'checked' : ''} ${this.state.usarPiso ? '' : 'disabled'} class="w-3 h-3 accent-blue-600">Piso
+                                </label>
                                 </div>
                                 ${mobLine}
                                 ${isAtivo && usePisoRow && usouPiso ? `<span class="text-[9px] text-orange-600 dark:text-yellow-400 font-bold mt-0.5 uppercase tracking-tighter">(Piso)</span>` : ''}
