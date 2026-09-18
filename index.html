@@ -827,7 +827,7 @@
                         const obj = JSON.parse(rd.result);
                         const arr = Array.isArray(obj) ? obj : obj.data;
                         if (!Array.isArray(arr)) throw new Error('JSON sem lista data');
-                        this.state.data = arr.map(d => this.sanitizeRow({ ativoC1:true, ativoC2:true, ativoC3:true, moMinima:0, ...d }));
+                        this.state.data = arr.map(d => this.sanitizeRow({ ativoC1:true, ativoC2:true, ativoC3:true, moMinima:0, ...d })).map(r => { delete r.usarPiso; return r; });
                         if (obj.varC2 !== undefined) this.state.varC2 = obj.varC2;
                         if (obj.varC3 !== undefined) this.state.varC3 = obj.varC3;
                         if (obj.absPct !== undefined) this.state.absPct = Math.min(30, Math.max(0, Number(obj.absPct) || 0));
@@ -879,7 +879,7 @@
                                 ativoC3: d.ativoC3 !== undefined ? d.ativoC3 : true,
                                 capFabrica: d.capFabrica !== undefined ? !!d.capFabrica : false,
                                 moMinima: d.moMinima !== undefined ? d.moMinima : (d.roundUp ? 1 : 0)
-                            })).map(r => this.sanitizeRow(r));
+                            })).map(r => this.sanitizeRow(r)).map(r => { delete r.usarPiso; return r; });
                         }
                         if (parsed.varC2 !== undefined) this.state.varC2 = parsed.varC2;
                         if (parsed.varC3 !== undefined) this.state.varC3 = parsed.varC3;
@@ -918,7 +918,7 @@
                                     ativoC3: d.ativoC3 !== undefined ? d.ativoC3 : true,
                                     capFabrica: d.capFabrica !== undefined ? !!d.capFabrica : false,
                                     moMinima: d.moMinima !== undefined ? d.moMinima : 0
-                                })).map(r => this.sanitizeRow(r));
+})).map(r => this.sanitizeRow(r)).map(r => { delete r.usarPiso; return r; });
                                 const maxId2 = Math.max(...this.state.data.map(d => d.id));
                                 this.state.nextId = (maxId2 > 0 ? maxId2 : 0) + 1;
                             }
