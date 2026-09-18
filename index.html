@@ -796,8 +796,8 @@
                     const oc = r.tipo==='Indireto' ? 0 : (cd>0 ? dd/cd*100 : (dc>0?Infinity:0));
                     let moe = 0;
                     if (isAtivo) {
-                        if (r.tipo==='Indireto') moe = Math.max(r.moAtual, r.moMinima||0) * absF; // MOI FIXA + abs
-                        else moe = oc>0 ? Math.max(r.moAtual*(oc/100), r.moMinima||0) * absF : 0;
+                        if (r.tipo==='Indireto') moe = (this.usePisoFor(r) ? Math.max(r.moAtual, r.moMinima||0) : r.moAtual) * absF; // MOI FIXA + abs
+                        else moe = oc>0 ? (this.usePisoFor(r) ? Math.max(r.moAtual*(oc/100), r.moMinima||0) : r.moAtual*(oc/100)) * absF : 0;
                     }
                     const sg = (r.tipo !== 'Indireto' && isAtivo) ? this.suggestShift(r, this.state.activeScenario, variation) : null;
                     const sug = !sg ? '' : (sg.maxed ? 'OC>100 sem degrau: avaliar 4o turno' : `Abrir ${sg.nextBase}h (OC->${isFinite(sg.ocNext)?sg.ocNext.toFixed(0)+'%':'ERRO'})`);
@@ -1020,6 +1020,18 @@
             },
 
             togglePiso() { this.state.usarPiso = document.getElementById('flag-piso')?.checked ?? true; this.render(); },
+
+            // Piso individual por setor: herda o flag global enquanto não explicitamente marcado
+            usePisoFor(row) {
+                return (row && row.usarPiso !== undefined && row.usarPiso !== null) ? !!row.usarPiso : !!this.state.usarPiso;
+            },
+
+            togglePisoSector(id) {
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                row.usarPiso = document.getElementById('flag-piso-' + id)?.checked ?? this.state.usarPiso;
+                this.render();
+            },
 
             toggleFeristas() { this.state.usarFeristas = document.getElementById('flag-feristas')?.checked ?? true; this.render(); },
 
@@ -1332,8 +1344,8 @@
                     }
                     
                     if (row.tipo === 'Indireto') {
-                        // MOI FIXA: respeita flag Piso
-                        moInd += (this.state.usarPiso ? Math.max(row.moAtual, row.moMinima || 0) : row.moAtual) * absF;
+                        // MOI FIXA: respeita flag Piso (global ou individual do setor)
+                        moInd += (this.usePisoFor(row) ? Math.max(row.moAtual, row.moMinima || 0) : row.moAtual) * absF;
                     } else {
                         let capReal = row.capNominal * (row.eficiencia / 100);
                         let tuEff = Math.max(0, (Number(row.tempoUtil) || 0) - setup);
@@ -1343,8 +1355,8 @@
                         let ocupacao = capDiaria > 0 ? (demDiaria / capDiaria) * 100 : (demandaCenario > 0 ? Infinity : 0);
                         
                         let calcBruto = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : row.moAtual;
-                        if (!isFinite(ocupacao) && demandaCenario > 0) calcBruto = this.state.usarPiso ? Math.max(row.moAtual, row.moMinima || 0) : row.moAtual;
-                        moDir += (ocupacao > 0) ? (this.state.usarPiso ? Math.max(calcBruto, row.moMinima || 0) : calcBruto) * absF : 0;
+                        if (!isFinite(ocupacao) && demandaCenario > 0) calcBruto = this.usePisoFor(row) ? Math.max(row.moAtual, row.moMinima || 0) : row.moAtual;
+                        moDir += (ocupacao > 0) ? (this.usePisoFor(row) ? Math.max(calcBruto, row.moMinima || 0) : calcBruto) * absF : 0;
 
                         if (ocupacao > LIMITE_GARGALO) gargalos.push({ name: row.name, oc: ocupacao });
                         const sg = this.suggestShift(row, scenarioNum, variation);
@@ -1618,8 +1630,8 @@
                 if (isAtivo) {
                     if (isIndireto) {
                         mob = row.moAtual;
-                        moe = (this.state.usarPiso ? Math.max(mob, row.moMinima || 0) : mob) * absF;
-                        usouPiso = this.state.usarPiso && mob < (row.moMinima || 0);
+                        moe = (this.usePisoFor(row) ? Math.max(mob, row.moMinima || 0) : mob) * absF;
+                        usouPiso = this.usePisoFor(row) && mob < (row.moMinima || 0);
                     } else {
                         capReal = row.capNominal * (row.eficiencia / 100);
                         const tuEff = Math.max(0, (Number(row.tempoUtil) || 0) - setupCur);
@@ -1628,8 +1640,8 @@
                         const dias = Math.max(1, row.diasUteis || 1);
                         demDiaria = dc / dias;
                         ocupacao = capDiaria > 0 ? (demDiaria / capDiaria) * 100 : (dc > 0 ? Infinity : 0);
-                        mob = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : (this.state.usarPiso ? Math.max(row.moAtual, row.moMinima || 0) : row.moAtual);
-                        if (ocupacao > 0) { moe = (this.state.usarPiso ? Math.max(mob, row.moMinima || 0) : mob) * absF; usouPiso = this.state.usarPiso && mob < (row.moMinima || 0) && (row.moMinima || 0) > 0; }
+                        mob = isFinite(ocupacao) ? row.moAtual * (ocupacao / 100) : (this.usePisoFor(row) ? Math.max(row.moAtual, row.moMinima || 0) : row.moAtual);
+                        if (ocupacao > 0) { moe = (this.usePisoFor(row) ? Math.max(mob, row.moMinima || 0) : mob) * absF; usouPiso = this.usePisoFor(row) && mob < (row.moMinima || 0) && (row.moMinima || 0) > 0; }
                     }
                 }
 
@@ -1655,11 +1667,11 @@
                 <div class="flex justify-between mt-1 text-[8px] uppercase tracking-wider text-slate-400"><span>mín ${(row.moMinima || 0).toFixed(0)}</span><span>atual ${row.moAtual}</span><span class="text-green-600 dark:text-neon-green font-bold">calc ${moe.toFixed(1)}</span></div>`;
 
                 const moTooltip = isIndireto
-                    ? (this.state.usarPiso
+                    ? (this.usePisoFor(row)
                         ? `M.O.I fixa: MAX(MOa ${row.moAtual}; MOmin ${row.moMinima || 0}) × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE`
                         : `M.O.I: MOa ${row.moAtual} × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE (sem piso)`)
                     : (isAtivo
-                        ? (this.state.usarPiso
+                        ? (this.usePisoFor(row)
                             ? `MOb = MOa ${row.moAtual} × OC ${isFinite(ocupacao) ? ocupacao.toFixed(1) + '%' : '(ERRO CAP)'} = ${mob.toFixed(2)} → MAX(MOb; piso ${row.moMinima || 0})${usouPiso ? ' (piso prevalece)' : ''} → ${(Math.max(mob, row.moMinima || 0)).toFixed(2)} × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE`
                             : `MOb = MOa ${row.moAtual} × OC ${isFinite(ocupacao) ? ocupacao.toFixed(1) + '%' : '(ERRO CAP)'} = ${mob.toFixed(2)} × ${absF.toFixed(2)} = ${moe.toFixed(1)} FTE (sem piso)`)
                         : 'Inativo no cenário: M.O. zerada.');
@@ -1765,7 +1777,7 @@
                 const tbody = document.getElementById('table-body');
                 tbody.innerHTML = '';
                 
-                let totalMoAtual = 0, totalMoCalcDir = 0, totalMoCalcInd = 0, totalMoCalcDirSemMin = 0, totalMoCalcIndSemMin = 0;
+                let totalMoAtual = 0, totalMoCalcDir = 0, totalMoCalcInd = 0, totalMoCalcDirSemMin = 0, totalMoCalcIndSemMin = 0, totalMoCalcDirEff = 0, totalMoCalcIndEff = 0;
                 let fabDiaria = 0, fabMensal = 0, fabCount = 0;
                 const currentScenario = this.state.activeScenario;
                 const variation = this.getVariation();
@@ -1777,6 +1789,7 @@
                 this.state.data.forEach(row => {
                     const isIndireto = row.tipo === 'Indireto';
                     const isAtivo = row[`ativoC${currentScenario}`];
+                    const usePisoRow = this.usePisoFor(row);
                     
                     let capReal = 0, capDiaria = 0, demDiaria = 0, ocupacao = 0, moCalcBruto = 0, moCalcEfetivo = 0, moCalcSemMin = 0, tuEff = 0;
                     let usouPiso = false;
@@ -1791,6 +1804,7 @@
                             totalMoCalcIndSemMin += moCalcSemMin;
                         }
                         totalMoCalcInd += moCalcEfetivo;
+                        totalMoCalcIndEff += usePisoRow ? moCalcEfetivo : moCalcSemMin;
                     } else {
                         if (isAtivo) {
                             capReal = row.capNominal * (row.eficiencia / 100);
@@ -1814,6 +1828,7 @@
                             if (sg) shiftSuggest.push({ id: row.id, name: row.name, ...sg });
                         }
                         totalMoCalcDir += moCalcEfetivo;
+                        totalMoCalcDirEff += usePisoRow ? moCalcEfetivo : moCalcSemMin;
                     }
                     
                     if (isAtivo) totalMoAtual += row.moAtual;
@@ -1855,11 +1870,11 @@
 
                     const moDelta = isAtivo ? moCalcEfetivo - row.moAtual : 0;
                     const moTooltip = isIndireto
-                        ? (this.state.usarPiso
+                        ? (usePisoRow
                             ? `M.O.I fixa: MAX(MOa ${row.moAtual}; MOmin ${row.moMinima||0}) x ${absF.toFixed(2)} = ${moCalcEfetivo.toFixed(1)} FTE (+${this.state.absPct}% abs.)`
                             : `M.O.I: MOa ${row.moAtual} x ${absF.toFixed(2)} = ${moCalcSemMin.toFixed(1)} FTE (+${this.state.absPct}% abs., sem piso)`)
                         : (isAtivo
-                            ? (this.state.usarPiso
+                            ? (usePisoRow
                                 ? `MOb = MOa ${row.moAtual} x OC ${isFinite(ocupacao) ? ocupacao.toFixed(1)+'%' : '(ERRO CAP)'} = ${moCalcBruto.toFixed(2)} -> MAX(MOb; piso ${row.moMinima||0})${usouPiso?' (piso prevalece)':''} = ${Math.max(moCalcBruto,row.moMinima||0).toFixed(2)} x ${absF.toFixed(2)} = ${moCalcEfetivo.toFixed(1)} FTE (c/ abs.)`
                                 : `MOb = MOa ${row.moAtual} x OC ${isFinite(ocupacao) ? ocupacao.toFixed(1)+'%' : '(ERRO CAP)'} = ${moCalcBruto.toFixed(2)} x ${absF.toFixed(2)} = ${moCalcSemMin.toFixed(1)} FTE (c/ abs., sem piso)`)
                             : 'Inativo com demanda > 0: M.O. zerada (Parado).');
@@ -1927,11 +1942,16 @@
                         
                         <td class="px-1 py-1 w-24 text-center border-l border-slate-200 dark:border-dark-700 bg-slate-50 dark:bg-dark-950">
                             <div class="flex flex-col items-center justify-center" title="${moTooltip}">
-                                <div class="rounded py-0.5 px-1 border ${moClass} text-sm w-10 text-center shrink-0 font-black">
-                                    ${isAtivo ? (this.state.usarPiso ? moCalcEfetivo : moCalcSemMin).toFixed(1) : '<span class="text-slate-400 dark:text-slate-600 text-xs">0.0</span>'}
+                                <div class="flex items-center justify-center gap-1">
+                                    <div class="rounded py-0.5 px-1 border ${moClass} text-sm w-10 text-center shrink-0 font-black">
+                                        ${isAtivo ? (usePisoRow ? moCalcEfetivo : moCalcSemMin).toFixed(1) : '<span class="text-slate-400 dark:text-slate-600 text-xs">0.0</span>'}
+                                    </div>
+                                    <label class="flex items-center justify-center gap-0.5 text-[8px] text-slate-400 dark:text-slate-500 cursor-pointer select-none whitespace-nowrap" title="Piso individual: mesma função do flag Piso do título, aplicado apenas a este setor.">
+                                        <input type="checkbox" id="flag-piso-${row.id}" onchange="app.togglePisoSector(${row.id})" ${usePisoRow ? 'checked' : ''} class="w-3 h-3 accent-blue-600">Piso
+                                    </label>
                                 </div>
                                 ${mobLine}
-                                ${isAtivo && this.state.usarPiso && usouPiso ? `<span class="text-[9px] text-orange-600 dark:text-yellow-400 font-bold mt-0.5 uppercase tracking-tighter">(Piso)</span>` : ''}
+                                ${isAtivo && usePisoRow && usouPiso ? `<span class="text-[9px] text-orange-600 dark:text-yellow-400 font-bold mt-0.5 uppercase tracking-tighter">(Piso)</span>` : ''}
                                 ${isAtivo && Number(this.state.absPct) > 0 ? `<span class="text-[9px] text-slate-400 leading-none">+${this.state.absPct}%</span>` : ''}
                                 ${deltaUI}
                             </div>
@@ -1949,11 +1969,11 @@
                     tbody.appendChild(tr);
                 });
 
-                document.getElementById('ft-dir').innerText = (this.state.usarPiso ? totalMoCalcDir : totalMoCalcDirSemMin).toFixed(1);
-                document.getElementById('ft-ind').innerText = (this.state.usarPiso ? totalMoCalcInd : totalMoCalcIndSemMin).toFixed(1);
+                document.getElementById('ft-dir').innerText = totalMoCalcDirEff.toFixed(1);
+                document.getElementById('ft-ind').innerText = totalMoCalcIndEff.toFixed(1);
                 const baseComPiso = totalMoCalcDir + totalMoCalcInd;
                 const baseSemPiso = totalMoCalcDirSemMin + totalMoCalcIndSemMin;
-                const totalCalcBase = this.state.usarPiso ? baseComPiso : baseSemPiso;
+                const totalCalcBase = totalMoCalcDirEff + totalMoCalcIndEff;
                 const totalSemMinBase = baseSemPiso;
                 const feristas = this.state.usarFeristas ? Math.ceil(totalCalcBase / 12) : 0;
                 const totalCalc = totalCalcBase + feristas;
