@@ -61,6 +61,13 @@
         .toggle-checkbox:checked + .toggle-label { background-color: #16a34a; }
         .dark .toggle-checkbox:checked + .toggle-label { background-color: #39ff14; box-shadow: 0 0 10px rgba(57, 255, 20, 0.5); }
         .toggle-checkbox:disabled + .toggle-label { opacity: 0.4; cursor: not-allowed; }
+
+        #table-body .notas-badge {
+            position: absolute; top: -4px; right: -5px; min-width: 12px; height: 12px; padding: 0 2px;
+            background: #f59e0b; color: #fff; font-size: 8px; font-weight: 800; line-height: 12px;
+            border-radius: 9999px; text-align: center; box-shadow: 0 0 0 1px #fff;
+        }
+        .dark #table-body .notas-badge { box-shadow: 0 0 0 1px #0b1320; }
         
         /* ===== Impressão dos Cenários (2 folhas) ===== */
         #print-sheet { display: none; font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; }
@@ -85,7 +92,7 @@
         #print-sheet .ps-foot { font-size: 8.5px; color: #64748b; border-top: 1px solid #cbd5e1; margin-top: 10px; padding-top: 4px; }
         @media print {
             @page { size: A4 portrait; margin: 10mm; }
-            body > header, body > main, #modal-novo-setor { display: none !important; }
+            body > header, body > main, #modal-novo-setor, #modal-notas { display: none !important; }
             #print-sheet { display: block !important; }
             #print-sheet .ps-page { page-break-after: always; }
             #print-sheet .ps-page:last-child { page-break-after: auto; }
@@ -501,6 +508,7 @@
                     <li><b>Semáforo OC:</b> &lt;85% normal; 85–95% atenção (amarelo); &gt;95% gargalo/tambor (vermelho, Teoria das Restrições – Goldratt). Inativo com demanda&gt;0 = <i>Parado</i>.</li>
                     <li><b>Hierarquia Mãe→Filha:</b> validação <code>SOMA(DC_filhas) ≤ DC_mãe</code>. No Dashboard o alerta usa <b>DC com variação do cenário ativo</b> (correção v21 – antes usava DB sem variação). Ex.: Mistura 3.295 t vs filhas 988+1.519=2.507 t → OK.</li>
                     <li><b>Sequência no grupo:</b> botões ↑ ↓ na coluna Ações (Modo Simulação) trocam a ordem apenas dentro do mesmo grupo (mesma mãe / raízes entre si). Não altera cálculos, só a apresentação do fluxo.</li>
+                    <li><b>Notas (📌 na coluna Ações):</b> abre uma caixa de texto para registrar observações, pendências ou decisões do recurso. Cada nota é gravada com <b>data e hora</b>, fica no histórico do próprio setor e é salva junto com o restante dos dados (localStorage + Supabase). Não altera nenhum cálculo. O selo laranja no ícone indica quantas notas existem.</li>
                     <li><b>Cap. Fábrica (seletor):</b> coluna após Ativo, independente do liga/desliga. <code>FÁBRICA = Σ CD dos marcados e ativos</code> (t/dia) e <code>Σ CD×DU</code> (t/mês) no rodapé roxo e no consolidado. Não altera nenhum outro equipamento.</li>
                 </ol>
                 <p class="mt-3 text-xs italic text-teal-700 dark:text-teal-300 border-l-4 border-teal-400 dark:border-teal-500 pl-3">Benchmark (WEF Global Lighthouse, Deloitte Smart Factory): plantas de referência operam com utilização saudável tipicamente em 75–85%, tratam &gt;95% como gargalo/tambor e perseguem OEE classe mundial ≈85% (disponibilidade × performance × qualidade) — calibre EF e o semáforo com o histórico local.</p>
@@ -643,6 +651,30 @@
         </div>
     </div>
 
+    <!-- Modal Notas (Comentários do recurso) -->
+    <div id="modal-notas" class="fixed inset-0 bg-slate-900 bg-opacity-60 dark:bg-black dark:bg-opacity-80 hidden justify-center items-center z-50 backdrop-blur-sm p-3" onclick="if(event.target === this) app.closeNotas()">
+        <div class="bg-white dark:bg-dark-900 rounded-xl shadow-xl dark:shadow-2xl w-full max-w-[540px] p-5 border border-slate-200 dark:border-neon-blue flex flex-col max-h-[88vh]">
+            <h2 class="text-base font-bold text-slate-800 dark:text-neon-blue dark:glow-text-blue mb-3 border-b border-slate-200 dark:border-dark-700 pb-2 flex items-center gap-2">
+                <i class="fas fa-sticky-note text-amber-500"></i>
+                <span class="truncate">Notas — <span id="notas-titulo" class="uppercase"></span></span>
+                <span id="notas-contador" class="ml-auto text-[10px] font-bold text-slate-500 dark:text-slate-400 shrink-0"></span>
+            </h2>
+            <div class="text-xs text-slate-500 dark:text-slate-400 mb-2">
+                <label for="notas-input" class="font-bold text-slate-600 dark:text-slate-300">Escreva a observação</label>
+                <textarea id="notas-input" rows="3" placeholder="Ex.: Aguardando manutenção preventiva em 12/09 — registrado por César." onkeydown="if((event.ctrlKey||event.metaKey) &amp;&amp; event.key === 'Enter') app.addNota()" class="w-full mt-1 bg-white dark:bg-dark-950 border border-slate-300 dark:border-dark-700 text-slate-800 dark:text-slate-200 rounded px-3 py-2 text-sm outline-none focus:border-amber-500 resize-y"></textarea>
+            </div>
+            <div class="flex items-center justify-between gap-2 mb-3">
+                <span class="text-[10px] text-slate-400 italic">Salvo com data e hora · Ctrl+Enter envia</span>
+                <div class="flex gap-2">
+                    <button onclick="app.closeNotas()" class="px-3 py-1.5 text-xs text-slate-600 dark:text-slate-400 font-bold hover:bg-slate-100 dark:hover:text-white rounded">Fechar</button>
+                    <button onclick="app.addNota()" class="px-3 py-1.5 text-xs bg-amber-500 hover:bg-amber-600 text-white font-bold rounded shadow-sm"><i class="fas fa-plus mr-1"></i>Adicionar nota</button>
+                </div>
+            </div>
+            <div class="text-[10px] uppercase font-bold text-slate-500 mb-1">Histórico</div>
+            <div id="notas-lista" class="overflow-y-auto space-y-2 pr-1" style="max-height:38vh"></div>
+        </div>
+    </div>
+
     <script>
         // Engine v21 — memorial sincronizado com aba Base Teórica (tab-2)
         const ELASTICIDADE_MOI = 1.15; // DEPRECIADA v21-fix: MOI é FIXA, não usa VAR (mantida p/ histórico)
@@ -677,6 +709,7 @@
                 usarPiso: true,
                 usarFeristas: true,
                 editingId: null,
+                notasId: null,
                 data: JSON.parse(JSON.stringify(DEFAULT_PARK)),
                 unidades: [],
                 unidadeAtiva: 0,
@@ -738,6 +771,9 @@
                 if (r.moAtual !== undefined) r.moAtual = Math.max(0, Math.round(Number(r.moAtual)||0));
                 if (r.moMinima !== undefined) r.moMinima = Math.max(0, Math.round(Number(r.moMinima)||0));
                 if (r.capFabrica === undefined) r.capFabrica = false; else r.capFabrica = !!r.capFabrica;
+                r.notas = (Array.isArray(r.notas) ? r.notas : [])
+                    .filter(n => n && typeof n.texto === 'string' && n.texto.trim())
+                    .map(n => ({ texto: String(n.texto).slice(0, 500), data: String(n.data || '') }));
                 return r;
             },
 
@@ -1390,6 +1426,85 @@
                     this.render();
                 }
             },
+
+            // ===== Notas / Comentários do recurso (persistentes, com data e hora) =====
+            openNotas(id) {
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                if (!Array.isArray(row.notas)) row.notas = [];
+                this.state.notasId = id;
+                document.getElementById('notas-titulo').innerText = row.name;
+                document.getElementById('notas-input').value = '';
+                this.renderNotas();
+                document.getElementById('modal-notas').classList.replace('hidden', 'flex');
+                setTimeout(() => document.getElementById('notas-input').focus(), 0);
+            },
+
+            closeNotas() { document.getElementById('modal-notas').classList.replace('flex', 'hidden'); },
+
+            notasStamp() {
+                const d = new Date();
+                return d.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+            },
+
+            renderNotas() {
+                const row = this.state.data.find(r => r.id === this.state.notasId);
+                const box = document.getElementById('notas-lista');
+                if (!row || !box) return;
+                const notas = Array.isArray(row.notas) ? row.notas : [];
+                document.getElementById('notas-contador').innerText = notas.length ? `${notas.length} nota(s)` : 'sem notas';
+                if (!notas.length) {
+                    box.innerHTML = `<p class="text-xs text-slate-400 dark:text-slate-500 italic text-center py-3">Nenhuma nota registrada neste recurso.</p>`;
+                    return;
+                }
+                box.innerHTML = notas.slice().reverse().map((n, ri) => {
+                    const i = notas.length - 1 - ri;
+                    return `<div class="bg-slate-50 dark:bg-dark-950 border border-slate-200 dark:border-dark-700 rounded px-2 py-1.5 flex items-start gap-2">
+                        <i class="fas fa-comment-dots text-amber-500 text-[11px] mt-0.5 shrink-0"></i>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-[10px] font-bold text-slate-500 dark:text-slate-400">${this.esc(n.data || '')}</p>
+                            <p class="text-xs text-slate-700 dark:text-slate-200 whitespace-pre-wrap break-words">${this.esc(n.texto || '')}</p>
+                        </div>
+                        <button onclick="app.removeNota(${i})" class="text-slate-300 hover:text-red-500 dark:hover:text-neon-alert transition-colors shrink-0" title="Excluir nota"><i class="fas fa-trash-alt text-[11px]"></i></button>
+                    </div>`;
+                }).join('');
+            },
+
+            addNota() {
+                const id = this.state.notasId;
+                const row = this.state.data.find(r => r.id === id);
+                if (!row) return;
+                const input = document.getElementById('notas-input');
+                const texto = input.value.trim();
+                if (!texto) { input.focus(); return; }
+                if (!Array.isArray(row.notas)) row.notas = [];
+                row.notas.push({ texto: texto.slice(0, 500), data: this.notasStamp() });
+                input.value = '';
+                this.renderNotas();
+                this.saveData();
+                this.updateNotasBadge(id);
+            },
+
+            removeNota(i) {
+                const row = this.state.data.find(r => r.id === this.state.notasId);
+                if (!row || !Array.isArray(row.notas) || !row.notas[i]) return;
+                if (!confirm('Excluir esta nota?')) return;
+                row.notas.splice(i, 1);
+                this.renderNotas();
+                this.saveData();
+                this.updateNotasBadge(this.state.notasId);
+            },
+
+            updateNotasBadge(id) {
+                const el = document.getElementById('notas-badge-' + id);
+                if (!el) return;
+                const row = this.state.data.find(r => r.id === id);
+                const n = row && Array.isArray(row.notas) ? row.notas.length : 0;
+                el.textContent = n;
+                el.classList.toggle('hidden', n === 0);
+                const btn = document.getElementById('notas-btn-' + id);
+                if (btn) btn.classList.toggle('text-amber-500', n > 0);
+            },
             
             addNewSector() {
                 const nome = document.getElementById('new-nome').value.trim() || 'NOVO SETOR';
@@ -1412,7 +1527,7 @@
                     const newItem = {
                         id: this.state.nextId++, name: nome.toUpperCase(), tipo: tipo,
                         ativoC1: true, ativoC2: true, ativoC3: true, moMinima: moMin,
-                        capNominal: cap, eficiencia: efi, tempoUtil: 8, demandaMensal: dem, diasUteis: 20, moAtual: mo, obs: ''
+                        capNominal: cap, eficiencia: efi, tempoUtil: 8, demandaMensal: dem, diasUteis: 20, moAtual: mo, obs: '', notas: []
                     };
                     if (parentId) newItem.parentId = parentId;
                     this.state.data.push(newItem);
@@ -2105,6 +2220,12 @@
                                 <button onclick="app.moveSector(${row.id}, 'down')" class="text-slate-400 hover:text-purple-600 transition-colors px-0.5" title="Descer sequência dentro do grupo (mesma mãe)"><i class="fas fa-arrow-down text-[11px]"></i></button>
                                 <button onclick="app.editSector(${row.id})" class="text-slate-400 hover:text-blue-600 dark:hover:text-neon-blue transition-colors px-0.5" title="Editar"><i class="fas fa-edit text-[12px]"></i></button>
                                 <button onclick="app.deleteSector(${row.id})" class="text-slate-400 hover:text-red-500 dark:hover:text-neon-alert transition-colors px-0.5" title="Excluir"><i class="fas fa-trash-alt text-[12px]"></i></button>
+                            </div>
+                            <div class="flex items-center justify-center">
+                                <button id="notas-btn-${row.id}" onclick="app.openNotas(${row.id})" class="relative text-slate-400 hover:text-amber-500 dark:hover:text-yellow-400 transition-colors px-0.5 ${row.notas && row.notas.length ? 'text-amber-500' : ''}" title="Notas / comentários deste recurso (salvos com data e hora)">
+                                    <i class="fas fa-sticky-note text-[12px]"></i>
+                                    <span id="notas-badge-${row.id}" class="notas-badge ${row.notas && row.notas.length ? '' : 'hidden'}">${row.notas ? row.notas.length : 0}</span>
+                                </button>
                             </div>
                         </td>
                     `;
