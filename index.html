@@ -1986,33 +1986,149 @@
             // Converte 1 ponto (pt) em milímetros, unidade usada nos PDFs.
             ptParaMm(pt) { return pt / 2.834645669; },
 
+            // As fontes padrão do jsPDF (Helvetica) usam codificação WinAnsi/cp1252.
+            // Glifos fora dela (seta, check, delta, chefão...) viram lixo, então
+            // todo texto que vai para o PDF passa por aqui.
+            textoPdf(s) {
+                return String(s == null ? '' : s)
+                    .replace(/[\u2192]/g, '->')
+                    .replace(/[\u2190]/g, '<-')
+                    .replace(/[\u2191]/g, '^')
+                    .replace(/[\u2193]/g, 'v')
+                    .replace(/[\u2713\u2714\u2705]/g, 'OK')
+                    .replace(/[\u2308]/g, '(')
+                    .replace(/[\u2309]/g, ')')
+                    .replace(/[\u0394]/g, 'D')
+                    .replace(/[\u03A3]/g, 'SOMA')
+                    .replace(/[\u2265]/g, '>=')
+                    .replace(/[\u2264]/g, '<=')
+                    .replace(/[\u2260]/g, '!=')
+                    .replace(/[\u2248]/g, '~')
+                    .replace(/[\u221E]/g, 'inf')
+                    .replace(/[\u2212\u2010\u2011\u2012\u2015]/g, '-')
+                    .replace(/[\u2044\u2215\u2217]/g, '*')
+                    .replace(/[\u25B2\u25BC\u2605\u2606\u2726\u2756\u2B50]/g, '*')
+                    .replace(/[\u25CF\u25CB\u25A0\u25A1\u25AA]/g, '-')
+                    .replace(/[\u00A0]/g, ' ')
+                    // U+00A7, U+00B1, U+00B7, U+00BA, U+00D7 e U+00F7 sao Latin-1,
+                    // logo o WinAnsi ja os cobre: nao precisam de traducao.
+                    .replace(/[^\u0020-\u007E\u00A0-\u00FF\u20AC\u201A\u0192\u201E\u2026\u2020\u2021\u02C6\u2030\u0160\u2039\u0152\u017D\u2018\u2019\u201C\u201D\u2022\u2013\u2014\u02DC\u2122\u0161\u203A\u0153\u017E\u0178]/gu, '?');
+            },
+
+            // Texto no PDF já sanitizado. Use sempre no lugar de doc.text.
+            pdfText(doc, txt, x, y, opts) {
+                doc.text(this.textoPdf(txt), x, y, opts);
+            },
+
+            // Sanitiza matrizes usadas no autoTable (cabeçalho e corpo).
+            tabelaPdf(rows) {
+                return rows.map(r => Array.isArray(r) ? r.map(c => this.textoPdf(c)) : this.textoPdf(r));
+            },
+
             // Monta o layout de um card SEM desenhar: quebra cada linha de texto
             // de verdade e reserva a altura necessária, evitando sobreposição.
             layoutCardCenario(doc, cfg) {
                 const pad = cfg.pad != null ? cfg.pad : 4;
                 const fs = cfg.fontSize || 8.5;
                 const gap = cfg.gap != null ? cfg.gap : 1.1;
-                const inner = cfg.w - pad * 2;
-                const blocos = [];
-                let h = pad;
+                // margem de segurança: splitTextToSize mede com a fonte atual e pode
+                // errar frações de mm, então deixamos 0,6mm de folga por lado
+                const inner = cfg.w - pad * 2 - 0.6;
+                const entradas = [];
 
                 const add = (txt, size, bold, color) => {
                     if (txt == null || txt === '') return;
-                    const wrap = Array.isArray(txt) ? txt : doc.splitTextToSize(String(txt), inner);
+                    // IMPORTANTE: splitTextToSize usa a fonte/tamanho ATUAIS.
+                    // Sem definir antes, a quebra sai com a fonte errada e o texto
+                    // vaza para fora do card.
+                    doc.setFont('helvetica', bold ? 'bold' : 'normal');
+                    doc.setFontSize(size);
+                    const wrap = Array.isArray(txt) ? txt : doc.splitTextToSize(this.textoPdf(txt), inner);
                     if (!wrap.length) return;
                     const lh = this.ptParaMm(size * 1.16);
-                    blocos.push({ linhas: wrap, size, bold, color, y: h + lh * 0.82 });
-                    h += wrap.length * lh + gap;
+                    entradas.push({ espaco: false, linhas: wrap, size, bold, color, y: 0, h: wrap.length * lh + gap });
                 };
+
+                const espaco = () => entradas.push({ espaco: true, size: fs });
 
                 add(cfg.titulo, cfg.tituloSize || 10, true, [15, 23, 42]);
                 add(cfg.subtitulo, cfg.subSize || 7.5, false, [100, 116, 139]);
-                (cfg.linhas || []).forEach(ln => {
-                    if (ln === '') h += this.ptParaMm(fs * 0.5);
-                    else add(ln, fs, !!cfg.bold, [15, 23, 42]);
+                (cfg.linhas || []).forEach(ln => { if (ln === '') espaco(); else add(ln, fs, !!cfg.bold, [15, 23, 42]); });
+
+                return this.fecharLayout(entradas, pad, gap);
+            },
+
+            // Posiciona verticalmente cada entrada e devolve a altura total.
+            // As alturas sao SEMPRE recalculadas aqui (nunca herdadas do chamador),
+            // entao cortar linhas de um bloco nunca deixa a altura dessincronizada.
+            fecharLayout(entradas, pad, gap) {
+                const lhDe = e => this.ptParaMm(e.size * 1.16);
+                let h = pad;
+                entradas.forEach(e => {
+                    if (e.espaco) { e.h = lhDe(e) * 0.5; }
+                    else { e.h = e.linhas.length * lhDe(e) + gap; e.y = h + lhDe(e) * 0.82; }
+                    h += e.h;
+                });
+                // o gap depois do ultimo texto nao conta: e respiro, nao conteudo
+                const ultimo = entradas.length ? entradas[entradas.length - 1] : null;
+                const respiro = ultimo && !ultimo.espaco ? gap : 0;
+                return { entradas, blocos: entradas.filter(e => !e.espaco), altura: Math.max(pad * 2, h - respiro + pad) };
+            },
+
+            // Garante que o card cabe em cfg.maxH: primeiro reduz a fonte, e se
+            // ainda não couber, descarta os indicadores menos relevantes (do fim).
+            layoutCardAjustado(doc, cfg) {
+                if (!cfg.maxH) return this.layoutCardCenario(doc, cfg);
+                const pad = cfg.pad != null ? cfg.pad : 4;
+                const gap = cfg.gap != null ? cfg.gap : 1.1;
+                const comEscala = e => Object.assign({}, cfg, {
+                    fontSize: cfg.fontSize * e, tituloSize: cfg.tituloSize * e, subSize: cfg.subSize * e
                 });
 
-                return { blocos, altura: h - gap + pad };
+                let escala = 1;
+                let l = this.layoutCardCenario(doc, cfg);
+                while (l.altura > cfg.maxH && escala > 0.7) {
+                    escala = Math.round((escala - 0.05) * 100) / 100;
+                    l = this.layoutCardCenario(doc, comEscala(escala));
+                }
+                if (l.altura <= cfg.maxH) return l;
+
+                // ainda alto: remove espacadores e corta pelo fim, avisando o usuario.
+                // O aviso de omissao entra DEPOIS do corte (senao seria a primeira peca
+                // descartada) e NUNCA e colado no fim de uma linha de conteudo: isso
+                // estouraria a largura util. Ele vive em uma linha propria, e as
+                // linhas de conteudo sao mantidas exatamente como splitTextToSize as
+                // mediu, garantindo que nenhuma delas ultrapasse o card.
+                const subSize = (cfg.subSize || 7.5) * escala;
+                const util = (cfg.w || 80) - pad * 2 - 0.6;
+                const cabem = size => Math.max(4, Math.floor(util / (size * 0.5)));
+                const nota = { espaco: false, size: subSize, bold: false, color: [148, 163, 184], linhas: [''], y: 0 };
+                const todos = l.entradas.filter(e => !e.espaco);
+                const corpo = todos.slice();
+                const altura = arr => this.fecharLayout(arr, pad, gap).altura;
+
+                // 1) descarta indicadores inteiros, do fim para o inicio
+                while (corpo.length > 1 && altura(corpo.concat([nota])) > cfg.maxH) corpo.pop();
+                const omitidos = todos.length - corpo.length;
+
+                // 2) se mesmo um unico indicador nao couber, corta linhas dele
+                while (corpo.length && altura(omitidos > 0 ? corpo.concat([nota]) : corpo) > cfg.maxH) {
+                    const b = corpo[corpo.length - 1];
+                    if (b.linhas.length <= 1) { corpo.pop(); continue; }
+                    b.linhas = b.linhas.slice(0, -1);
+                }
+                const cortadas = todos.length - corpo.length;
+
+                // 3) fixa o texto do aviso, curto o bastante para a largura util
+                const cabemNota = cabem(subSize);
+                nota.linhas = ['(demais omitidos)'].slice(0, cabemNota);
+                if (omitidos > 0) {
+                    const curto = '(+' + omitidos + ')';
+                    if (curto.length <= cabemNota) nota.linhas = [curto];
+                }
+
+                const fim = omitidos > 0 && corpo.length ? corpo.concat([nota]) : corpo;
+                return Object.assign(this.fecharLayout(fim, pad, gap), { truncado: omitidos > 0 || cortadas > 0 });
             },
 
             // Desenha o card já medido. cfg.h permite igualar a altura dos 3 cards.
@@ -2027,7 +2143,10 @@
                     doc.setTextColor(b.color[0], b.color[1], b.color[2]);
                     doc.setFont('helvetica', b.bold ? 'bold' : 'normal');
                     doc.setFontSize(b.size);
-                    doc.text(b.linhas, cfg.x + pad, b.y, { lineHeightFactor: 1.16 });
+                    // b.y e a altura DENTRO do card (medida a partir do topo dele),
+                    // entao a coordenada da pagina precisa somar cfg.y. Sem isso o
+                    // texto inteiro sai deslocado para o topo da folha.
+                    this.pdfText(doc, b.linhas, cfg.x + pad, cfg.y + b.y, { lineHeightFactor: 1.16 });
                 });
             },
 
@@ -2058,18 +2177,18 @@
                 doc.setTextColor(255, 255, 255);
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(15);
-                doc.text('Painel de S&OP Data-Driven — Cenários Simulados', 14, 11);
+                this.pdfText(doc, 'Painel de S&OP Data-Driven — Cenários Simulados', 14, 11);
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(10);
-                doc.text('Parque Fabril · Plano Diretor de Capacidade & Mão de Obra', 14, 17);
+                this.pdfText(doc, 'Parque Fabril · Plano Diretor de Capacidade & Mão de Obra', 14, 17);
                 doc.setFontSize(8.5);
-                doc.text('Gerado em ' + new Date().toLocaleString('pt-BR') + ' · Absenteísmo ' + this.state.absPct + '% · Setups ' + this.state.setupC1 + '/' + this.state.setupC2 + '/' + this.state.setupC3 + ' h/dia · Variação C2 +' + this.state.varC2 + '% · C3 +' + this.state.varC3 + '%', 14, 22);
+                this.pdfText(doc, 'Gerado em ' + new Date().toLocaleString('pt-BR') + ' · Absenteísmo ' + this.state.absPct + '% · Setups ' + this.state.setupC1 + '/' + this.state.setupC2 + '/' + this.state.setupC3 + ' h/dia · Variação C2 +' + this.state.varC2 + '% · C3 +' + this.state.varC3 + '%', 14, 22);
 
                 let y = 34;
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(30, 58, 138);
-                doc.text('Visão Estratégica: Comparativo de Cenários', 14, y);
+                this.pdfText(doc, 'Visão Estratégica: Comparativo de Cenários', 14, y);
                 y += 4;
                 const cards = [['Cenário 1: Previsto', stC1], ['Cenário 2: Médio', stC2], ['Cenário 3: Pico', stC3]];
                 const cw = (W - 28 - 10) / 3;
@@ -2096,7 +2215,7 @@
                         ]
                     };
                 });
-                const layouts = cfgs.map(c => this.layoutCardCenario(doc, c));
+                const layouts = cfgs.map(c => this.layoutCardAjustado(doc, Object.assign({}, c, { maxH: 96 })));
                 const cardH = Math.max.apply(null, layouts.map(l => l.altura));
                 cfgs.forEach((c, i) => this.desenharCardCenario(doc, Object.assign({}, c, { h: cardH }), layouts[i]));
                 y += cardH + 6;
@@ -2108,8 +2227,8 @@
                     return [this.esc(r.name), r.tipo, oc(m1), oc(m2), oc(m3), mo(m1), mo(m2), mo(m3)];
                 });
                 doc.autoTable({
-                    head: [['Setor / Recurso', 'Tipo', 'OC C1', 'OC C2', 'OC C3', 'M.O. C1', 'M.O. C2', 'M.O. C3']],
-                    body,
+                    head: this.tabelaPdf([['Setor / Recurso', 'Tipo', 'OC C1', 'OC C2', 'OC C3', 'M.O. C1', 'M.O. C2', 'M.O. C3']]),
+                    body: this.tabelaPdf(body),
                     startY: y,
                     margin: { left: 14, right: 14, top: 30 },
                     styles: { fontSize: 8, cellPadding: 2 },
@@ -2119,8 +2238,8 @@
                         const pg = d.doc.internal.pageSize.getHeight();
                         d.doc.setFontSize(8);
                         d.doc.setTextColor(100, 116, 139);
-                        d.doc.text('Documento gerado pelo Painel de S&OP Data-Driven · Motor de capacidade v21', 14, pg - 8);
-                        d.doc.text('Página ' + d.pageNumber, d.doc.internal.pageSize.getWidth() - 20, pg - 8);
+                        this.pdfText(d.doc, 'Documento gerado pelo Painel de S&OP Data-Driven · Motor de capacidade v21', 14, pg - 8);
+                        this.pdfText(d.doc, 'Página ' + d.pageNumber, d.doc.internal.pageSize.getWidth() - 20, pg - 8);
                     }
                 });
 
@@ -2129,13 +2248,13 @@
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(9);
                 doc.setTextColor(30, 58, 138);
-                doc.text('Resumo executivo', 14, yy);
+                this.pdfText(doc, 'Resumo executivo', 14, yy);
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8.5);
                 doc.setTextColor(15, 23, 42);
-                doc.text('• Cenário 1 (Previsto) é a base de planejamento; cenários 2 e 3 aplicam variações de demanda (+' + this.state.varC2 + '% / +' + this.state.varC3 + '%) e setups adicionais.', 14, yy + 5);
-                doc.text('• Absenteísmo de ' + this.state.absPct + '% aplicado sobre toda a M.O. calculada; feristas = ⌈M.O. base ÷ 12⌉ somados apenas ao Total M.O. Necessária.', 14, yy + 10);
-                doc.text('• Ocupação acima de ' + LIMITE_GARGALO + '% indica gargalo real (Tambor); acima de ' + LIMITE_ATENCAO + '% indica atenção de turno.', 14, yy + 15);
+                this.pdfText(doc, '• Cenário 1 (Previsto) é a base de planejamento; cenários 2 e 3 aplicam variações de demanda (+' + this.state.varC2 + '% / +' + this.state.varC3 + '%) e setups adicionais.', 14, yy + 5);
+                this.pdfText(doc, '• Absenteísmo de ' + this.state.absPct + '% aplicado sobre toda a M.O. calculada; feristas = ⌈M.O. base ÷ 12⌉ somados apenas ao Total M.O. Necessária.', 14, yy + 10);
+                this.pdfText(doc, '• Ocupação acima de ' + LIMITE_GARGALO + '% indica gargalo real (Tambor); acima de ' + LIMITE_ATENCAO + '% indica atenção de turno.', 14, yy + 15);
                 doc.save('Cenarios-SOP_' + new Date().toISOString().slice(0, 10) + '.pdf');
             },
 
@@ -2169,12 +2288,12 @@
                 doc.setTextColor(255, 255, 255);
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(15);
-                doc.text('Painel de S&OP Data-Driven', 14, 11);
+                this.pdfText(doc, 'Painel de S&OP Data-Driven', 14, 11);
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(11);
-                doc.text(titulo, 14, 17.5);
+                this.pdfText(doc, titulo, 14, 17.5);
                 doc.setFontSize(8.5);
-                doc.text(`${uNome ? 'Unidade: ' + uNome + ' · ' : ''}${stamp} · Demanda ${varPct > 0 ? '+' : ''}${varPct}% · Setup ${setup} h/dia · Absenteísmo ${this.state.absPct}%`, 14, 22.5);
+                this.pdfText(doc, `${uNome ? 'Unidade: ' + uNome + ' · ' : ''}${stamp} · Demanda ${varPct > 0 ? '+' : ''}${varPct}% · Setup ${setup} h/dia · Absenteísmo ${this.state.absPct}%`, 14, 22.5);
 
                 // Card do cenário
                 let y = 34;
@@ -2193,7 +2312,7 @@
                         'Sugestão de turnos (OC > 100%): ' + sugTxt
                     ]
                 };
-                const cardL = this.layoutCardCenario(doc, cardCfg);
+                const cardL = this.layoutCardAjustado(doc, Object.assign({}, cardCfg, { maxH: 70 }));
                 this.desenharCardCenario(doc, cardCfg, cardL);
                 y += cardL.altura + 8;
 
@@ -2216,8 +2335,8 @@
                 });
 
                 doc.autoTable({
-                    head: [['Setor / Recurso', 'Tipo', 'Cap. Nom. (t/h)', 'Efic. (%)', 'T. Útil (h)', 'Cap. Diária (t/d)', 'Demanda (t/mês)', 'Dem. Diária (t/d)', 'Ocup. (%)', 'M.O. Calc.', 'M.O. Atual', 'Notas']],
-                    body: rows,
+                    head: this.tabelaPdf([['Setor / Recurso', 'Tipo', 'Cap. Nom. (t/h)', 'Efic. (%)', 'T. Útil (h)', 'Cap. Diária (t/d)', 'Demanda (t/mês)', 'Dem. Diária (t/d)', 'Ocup. (%)', 'M.O. Calc.', 'M.O. Atual', 'Notas']]),
+                    body: this.tabelaPdf(rows),
                     startY: y,
                     margin: { left: 14, right: 14, top: 30, bottom: 14 },
                     styles: { fontSize: 7.5, cellPadding: 1.8 },
@@ -2228,8 +2347,8 @@
                         const pg = d.doc.internal.pageSize.getHeight();
                         d.doc.setFontSize(7.5);
                         d.doc.setTextColor(100, 116, 139);
-                        d.doc.text('SOP-Capacidade · ' + titulo + ' · ' + uNome + ' · Motor de capacidade v22', 14, pg - 8);
-                        d.doc.text('Página ' + d.pageNumber, d.doc.internal.pageSize.getWidth() - 20, pg - 8);
+                        this.pdfText(d.doc, 'SOP-Capacidade · ' + titulo + ' · ' + uNome + ' · Motor de capacidade v22', 14, pg - 8);
+                        this.pdfText(d.doc, 'Página ' + d.pageNumber, d.doc.internal.pageSize.getWidth() - 20, pg - 8);
                     }
                 });
 
@@ -2238,11 +2357,11 @@
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(9);
                 doc.setTextColor(30, 58, 138);
-                doc.text('Metodologia', 14, yy);
+                this.pdfText(doc, 'Metodologia', 14, yy);
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8);
                 doc.setTextColor(15, 23, 42);
-                doc.text('Demanda do cenário = demanda base × (1 + variação) · Setup desconta do tempo útil · Absenteísmo de ' + this.state.absPct + '% aplicado sobre a M.O. calculada · Feristas = ⌈M.O. base ÷ 12⌉ somados apenas ao Total Necessário · Piso de M.O. mínima ' + (this.state.usarPiso ? 'ativo' : 'inativo') + '.', 14, yy + 5);
+                this.pdfText(doc, 'Demanda do cenário = demanda base × (1 + variação) · Setup desconta do tempo útil · Absenteísmo de ' + this.state.absPct + '% aplicado sobre a M.O. calculada · Feristas = ⌈M.O. base ÷ 12⌉ somados apenas ao Total Necessário · Piso de M.O. mínima ' + (this.state.usarPiso ? 'ativo' : 'inativo') + '.', 14, yy + 5);
                 doc.save(`SOP_Cenario_${num}_${(uNome || 'unidade').replace(/[^\w\-]+/g, '')}_${new Date().toISOString().slice(0, 10)}.pdf`);
             },
 
@@ -2262,10 +2381,10 @@
                 doc.setTextColor(255, 255, 255);
                 doc.setFont('helvetica', 'bold');
                 doc.setFontSize(15);
-                doc.text('Visão Estratégica: Comparativo de Cenários', 14, 11);
+                this.pdfText(doc, 'Visão Estratégica: Comparativo de Cenários', 14, 11);
                 doc.setFont('helvetica', 'normal');
                 doc.setFontSize(8.5);
-                doc.text(`${uNome ? 'Unidade: ' + uNome + ' · ' : ''}Gerado em ${new Date().toLocaleString('pt-BR')} · Absenteísmo ${this.state.absPct}% · Setups ${this.state.setupC1}/${this.state.setupC2}/${this.state.setupC3} h/dia`, 14, 17.5);
+                this.pdfText(doc, `${uNome ? 'Unidade: ' + uNome + ' · ' : ''}Gerado em ${new Date().toLocaleString('pt-BR')} · Absenteísmo ${this.state.absPct}% · Setups ${this.state.setupC1}/${this.state.setupC2}/${this.state.setupC3} h/dia`, 14, 17.5);
 
                 const varC1 = 0, varC2 = this.state.varC2 / 100, varC3 = this.state.varC3 / 100;
                 const states = [
@@ -2302,7 +2421,7 @@
                         ]
                     };
                 });
-                const layouts = cfgs.map(c => this.layoutCardCenario(doc, c));
+                const layouts = cfgs.map(c => this.layoutCardAjustado(doc, Object.assign({}, c, { maxH: 92 })));
                 const cardH = Math.max.apply(null, layouts.map(l => l.altura));
                 cfgs.forEach((c, i) => this.desenharCardCenario(doc, Object.assign({}, c, { h: cardH }), layouts[i]));
                 y += cardH + 6;
@@ -2318,8 +2437,8 @@
                     })
                 ];
                 doc.autoTable({
-                    head: [resumo[0]],
-                    body: resumo.slice(1),
+                    head: this.tabelaPdf([resumo[0]]),
+                    body: this.tabelaPdf(resumo.slice(1)),
                     startY: y,
                     margin: { left: 14, right: 14, top: 30, bottom: 14 },
                     styles: { fontSize: 8.5, cellPadding: 2.5, halign: 'center' },
@@ -2330,8 +2449,8 @@
                         const pg = d.doc.internal.pageSize.getHeight();
                         d.doc.setFontSize(7.5);
                         d.doc.setTextColor(100, 116, 139);
-                        d.doc.text('SOP-Capacidade · Visão Estratégica · ' + uNome, 14, pg - 8);
-                        d.doc.text('Página ' + d.pageNumber, d.doc.internal.pageSize.getWidth() - 20, pg - 8);
+                        this.pdfText(d.doc, 'SOP-Capacidade · Visão Estratégica · ' + uNome, 14, pg - 8);
+                        this.pdfText(d.doc, 'Página ' + d.pageNumber, d.doc.internal.pageSize.getWidth() - 20, pg - 8);
                     }
                 });
                 doc.save(`SOP_Comparativo_${(uNome || 'unidade').replace(/[^\w\-]+/g, '')}_${new Date().toISOString().slice(0, 10)}.pdf`);
