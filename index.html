@@ -1990,6 +1990,11 @@
             // Glifos fora dela (seta, check, delta, chefão...) viram lixo, então
             // todo texto que vai para o PDF passa por aqui.
             textoPdf(s) {
+                // CRITICO: um array de linhas (o resultado do splitTextToSize) precisa
+                // continuar array. String(lista) juntaria tudo com virgula numa unica
+                // linha gigantesca, que atravessaria a pagina e perderia a informacao
+                // que passou da borda do card.
+                if (Array.isArray(s)) return s.map(x => this.textoPdf(x));
                 return String(s == null ? '' : s)
                     .replace(/[\u2192]/g, '->')
                     .replace(/[\u2190]/g, '<-')
@@ -2025,6 +2030,12 @@
                 return rows.map(r => Array.isArray(r) ? r.map(c => this.textoPdf(c)) : this.textoPdf(r));
             },
 
+            // Largura util de um card: o que sobra depois das margens internas.
+            // Mesma conta do layoutCardCenario, entao medida e desenho concordam.
+            larguraUtilCard(cfg, pad) {
+                return (cfg.w || 80) - (pad != null ? pad : 4) * 2 - 0.6;
+            },
+
             // Monta o layout de um card SEM desenhar: quebra cada linha de texto
             // de verdade e reserva a altura necessária, evitando sobreposição.
             layoutCardCenario(doc, cfg) {
@@ -2043,7 +2054,7 @@
                     // vaza para fora do card.
                     doc.setFont('helvetica', bold ? 'bold' : 'normal');
                     doc.setFontSize(size);
-                    const wrap = Array.isArray(txt) ? txt : doc.splitTextToSize(this.textoPdf(txt), inner);
+                    const wrap = Array.isArray(txt) ? this.textoPdf(txt) : doc.splitTextToSize(this.textoPdf(txt), inner);
                     if (!wrap.length) return;
                     const lh = this.ptParaMm(size * 1.16);
                     entradas.push({ espaco: false, linhas: wrap, size, bold, color, y: 0, h: wrap.length * lh + gap });
@@ -2081,8 +2092,16 @@
                 if (!cfg.maxH) return this.layoutCardCenario(doc, cfg);
                 const pad = cfg.pad != null ? cfg.pad : 4;
                 const gap = cfg.gap != null ? cfg.gap : 1.1;
+                // As bases precisam ser lidas com o MESMO fallback do
+                // layoutCardCenario. Sem isso, cfg.fontSize undefined viraria NaN
+                // ao multiplicar pela escala, o `|| 8.5` restoringaria o padrao e a
+                // fonte nunca encolheria: o card so caberia descartando indicadores.
+                const fBase = cfg.fontSize || 8.5;
+                const tBase = cfg.tituloSize || 10;
+                const sBase = cfg.subSize || 7.5;
+                const inner = this.larguraUtilCard(cfg, pad);
                 const comEscala = e => Object.assign({}, cfg, {
-                    fontSize: cfg.fontSize * e, tituloSize: cfg.tituloSize * e, subSize: cfg.subSize * e
+                    fontSize: fBase * e, tituloSize: tBase * e, subSize: sBase * e
                 });
 
                 let escala = 1;
@@ -2093,42 +2112,67 @@
                 }
                 if (l.altura <= cfg.maxH) return l;
 
-                // ainda alto: remove espacadores e corta pelo fim, avisando o usuario.
-                // O aviso de omissao entra DEPOIS do corte (senao seria a primeira peca
-                // descartada) e NUNCA e colado no fim de uma linha de conteudo: isso
-                // estouraria a largura util. Ele vive em uma linha propria, e as
-                // linhas de conteudo sao mantidas exatamente como splitTextToSize as
-                // mediu, garantindo que nenhuma delas ultrapasse o card.
-                const subSize = (cfg.subSize || 7.5) * escala;
-                const util = (cfg.w || 80) - pad * 2 - 0.6;
-                const cabem = size => Math.max(4, Math.floor(util / (size * 0.5)));
+                // Ainda nao cabe. Corta o minimo necessario para caber em maxH.
+                // Este passo e a UNICA fonte de altura autoritativa: chamar
+                // layoutCardCenario depois devolveria a altura SEM corte e o card
+                // estouraria de novo.
+                const t = this.truncarParaMaxH(l, pad, gap, cfg.maxH, sBase * escala, this.larguraUtilCard(cfg, pad));
+                if (!t) return l;
+
+                // Com o corte feito sobrou altura livre. Nao adianta simply crescer a
+                // fonte: ai o conteudo volta a nao caber. O que se quer e a maior
+                // fonte que ainda cabe DEPOIS do corte, ou seja, wasting menos espaco.
+                // Percorremos as escalas e ficam as que cabem; a vencedora e a de
+                // maior escala (texto maior), e entre iguais a que guarda mais linhas.
+                let melhor = Object.assign(t, { escala: escala });
+                for (let e = escala + 0.05; e <= 1.0001; e = Math.round((e + 0.05) * 100) / 100) {
+                    const lt = this.layoutCardCenario(doc, comEscala(e));
+                    let c;
+                    if (lt.altura <= cfg.maxH) c = lt;
+                    else c = this.truncarParaMaxH(lt, pad, gap, cfg.maxH, sBase * e, this.larguraUtilCard(cfg, pad));
+                    if (!c) continue;
+                    if (!c.truncado) return c;
+                    const linhasDe = r => r.blocos.reduce((a, b) => a + b.linhas.length, 0);
+                    if (linhasDe(c) >= linhasDe(melhor)) melhor = Object.assign(c, { escala: e });
+                }
+                return melhor;
+            },
+
+            // Corta o minimo de linhas/indicadores para o card caber em maxH.
+            // Devolve null se nem o titulo couber (caller decide o que fazer).
+            truncarParaMaxH(l, pad, gap, maxH, subSize, inner) {
                 const nota = { espaco: false, size: subSize, bold: false, color: [148, 163, 184], linhas: [''], y: 0 };
                 const todos = l.entradas.filter(e => !e.espaco);
-                const corpo = todos.slice();
-                const altura = arr => this.fecharLayout(arr, pad, gap).altura;
+                const corpo = todos.map(e => Object.assign({}, e, { linhas: e.linhas.slice() }));
+                const altura = arr => this.fecharLayout(arr.map(e => Object.assign({}, e)), pad, gap).altura;
+                if (!corpo.length) return null;
 
                 // 1) descarta indicadores inteiros, do fim para o inicio
-                while (corpo.length > 1 && altura(corpo.concat([nota])) > cfg.maxH) corpo.pop();
-                const omitidos = todos.length - corpo.length;
+                let omitidos = 0;
+                while (corpo.length > 1 && altura(corpo.concat([nota])) > maxH) { corpo.pop(); omitidos++; }
+                omitidos = todos.length - corpo.length;
 
-                // 2) se mesmo um unico indicador nao couber, corta linhas dele
-                while (corpo.length && altura(omitidos > 0 ? corpo.concat([nota]) : corpo) > cfg.maxH) {
+                // 2) se mesmo assim nao couber, corta linhas do ultimo indicador
+                while (corpo.length && altura(omitidos > 0 ? corpo.concat([nota]) : corpo) > maxH) {
                     const b = corpo[corpo.length - 1];
                     if (b.linhas.length <= 1) { corpo.pop(); continue; }
                     b.linhas = b.linhas.slice(0, -1);
                 }
                 const cortadas = todos.length - corpo.length;
+                if (!corpo.length) return null;
 
-                // 3) fixa o texto do aviso, curto o bastante para a largura util
-                const cabemNota = cabem(subSize);
-                nota.linhas = ['(demais omitidos)'].slice(0, cabemNota);
-                if (omitidos > 0) {
-                    const curto = '(+' + omitidos + ')';
-                    if (curto.length <= cabemNota) nota.linhas = [curto];
-                }
+                // 3) o aviso de omissao entra DEPOIS do corte (senao seria a primeira
+                // peca descartada) e nunca e colado no fim de uma linha de conteudo:
+                // isso estouraria a largura util. Vive em uma linha propria.
+                const cabemNota = Math.max(4, Math.floor(inner / (subSize * 0.5)));
+                nota.linhas = omitidos > 0 && ('(+' + omitidos + ')').length <= cabemNota
+                    ? ['(+' + omitidos + ')']
+                    : ['(demais omitidos)'.slice(0, cabemNota)];
 
-                const fim = omitidos > 0 && corpo.length ? corpo.concat([nota]) : corpo;
-                return Object.assign(this.fecharLayout(fim, pad, gap), { truncado: omitidos > 0 || cortadas > 0 });
+                const fim = omitidos > 0 ? corpo.concat([nota]) : corpo;
+                const r = this.fecharLayout(fim, pad, gap);
+                if (r.altura > maxH) return null;
+                return Object.assign(r, { truncado: omitidos > 0 || cortadas > 0 });
             },
 
             // Desenha o card já medido. cfg.h permite igualar a altura dos 3 cards.
