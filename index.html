@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
@@ -71,19 +71,19 @@
         
         /* ===== Impressão dos Cenários (2 folhas) ===== */
         #print-sheet { display: none; font-family: 'Segoe UI', Arial, sans-serif; color: #0f172a; }
-        #print-sheet .ps-page { padding: 2px; }
-        #print-sheet h1 { font-size: 20px; line-height: 1.2; color: #1e3a8a; }
-        #print-sheet h2 { font-size: 13px; color: #1e3a8a; margin: 10px 0 4px 0; }
-        #print-sheet .ps-sub { font-size: 10.5px; color: #475569; margin: 2px 0 8px 0; }
-        #print-sheet table { width: 100%; border-collapse: collapse; font-size: 8.5px; }
-        #print-sheet th, #print-sheet td { border: 1px solid #cbd5e1; padding: 2.5px 4px; text-align: left; }
-        #print-sheet th { background: #1e3a8a; color: #fff; font-size: 8px; text-transform: uppercase; }
+        #print-sheet .ps-page { padding: 2px; page-break-inside: avoid; }
+        #print-sheet h1 { font-size: 19px; line-height: 1.2; color: #1e3a8a; }
+        #print-sheet h2 { font-size: 12.5px; color: #1e3a8a; margin: 10px 0 4px 0; }
+        #print-sheet .ps-sub { font-size: 10px; color: #475569; margin: 2px 0 6px 0; }
+        #print-sheet table { width: 100%; border-collapse: collapse; font-size: 7.6px; }
+        #print-sheet th, #print-sheet td { border: 1px solid #cbd5e1; padding: 2px 3px; text-align: left; }
+        #print-sheet th { background: #1e3a8a; color: #fff; font-size: 7.2px; text-transform: uppercase; }
         #print-sheet tfoot td { font-weight: bold; background: #f1f5f9; }
-        #print-sheet .ps-card { border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 7px 10px; margin-bottom: 8px; }
+        #print-sheet .ps-card { border: 1.5px solid #cbd5e1; border-radius: 6px; padding: 6px 9px; margin-bottom: 7px; page-break-inside: avoid; }
         #print-sheet .ps-card h3 { margin: 0 0 4px 0; font-size: 11.5px; }
-        #print-sheet .ps-grid { display: flex; gap: 6px; flex-wrap: wrap; }
-        #print-sheet .ps-kpi { border: 1px solid #e2e8f0; background: #f8fafc; padding: 3px 8px; border-radius: 4px; font-size: 9px; color: #475569; }
-        #print-sheet .ps-kpi b { display: block; font-size: 13px; color: #0f172a; }
+        #print-sheet .ps-grid { display: flex; gap: 5px; flex-wrap: wrap; }
+        #print-sheet .ps-kpi { border: 1px solid #e2e8f0; background: #f8fafc; padding: 3px 7px; border-radius: 4px; font-size: 8.5px; color: #475569; }
+        #print-sheet .ps-kpi b { display: block; font-size: 12px; color: #0f172a; }
         #print-sheet .ps-tag { display: inline-block; padding: 1px 5px; border-radius: 3px; font-size: 8.5px; font-weight: bold; }
         #print-sheet .ps-ok { background: #dcfce7; color: #166534; }
         #print-sheet .ps-warn { background: #fef3c7; color: #92400e; }
@@ -91,8 +91,8 @@
         #print-sheet .ps-line { font-size: 10px; margin: 3px 0; }
         #print-sheet .ps-foot { font-size: 8.5px; color: #64748b; border-top: 1px solid #cbd5e1; margin-top: 10px; padding-top: 4px; }
         @media print {
-            @page { size: A4 portrait; margin: 10mm; }
-            body > header, body > main, #modal-novo-setor, #modal-notas { display: none !important; }
+            @page { size: A4 landscape; margin: 8mm; }
+            body > header, body > main, #modal-novo-setor, #modal-notas, #modal-versoes { display: none !important; }
             #print-sheet { display: block !important; }
             #print-sheet .ps-page { page-break-after: always; }
             #print-sheet .ps-page:last-child { page-break-after: auto; }
@@ -179,6 +179,11 @@
                 <button onclick="app.toggleTheme()" class="w-10 h-10 rounded-full flex items-center justify-center bg-slate-100 dark:bg-dark-800 text-slate-600 dark:text-yellow-400 hover:bg-slate-200 dark:hover:bg-dark-700 transition-colors">
                     <i class="fas fa-moon dark:hidden"></i>
                     <i class="fas fa-sun hidden dark:block"></i>
+                </button>
+                <button id="btn-versoes" onclick="app.openVersoes()" class="flex items-center gap-2 px-3 py-2 rounded font-bold transition-all duration-200 bg-slate-100 text-blue-700 border border-slate-300 hover:bg-slate-200 dark:bg-dark-800 dark:border-neon-blue dark:text-neon-blue dark:hover:bg-dark-700" title="Salvar e recuperar versões das simulações (as 4 unidades)">
+                    <i class="fas fa-clock-rotate-left"></i>
+                    <span>Versões</span>
+                    <span id="versoes-badge" class="hidden px-1.5 py-0.5 rounded-full bg-blue-600 dark:bg-neon-blue text-white dark:text-dark-950 text-[9px] font-black">0</span>
                 </button>
                 <button id="btn-lock" onclick="app.toggleLock()" class="flex items-center gap-2 px-4 py-2 rounded font-bold transition-all duration-200 bg-green-100 text-green-700 border border-green-300 hover:bg-green-200 dark:bg-dark-800 dark:border-neon-green dark:text-neon-green dark:shadow-[0_0_8px_rgba(57,255,20,0.3)] dark:hover:bg-neon-green dark:hover:text-dark-950">
                     <i class="fas fa-lock" id="icon-lock"></i>
@@ -433,8 +438,12 @@
             <div class="flex flex-wrap items-center justify-between gap-3 mb-6">
                 <h2 class="text-2xl font-bold text-slate-800 dark:text-slate-200"><i class="fas fa-columns mr-2 text-blue-600 dark:text-neon-blue"></i>Visão Estratégica: Comparativo de Cenários</h2>
                 <div class="flex flex-wrap gap-2">
-                    <button onclick="app.printScenarios()" class="px-4 py-2 rounded-lg font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"><i class="fas fa-print mr-2"></i>Imprimir Cenários (2 folhas)</button>
-                    <button onclick="app.exportPDF()" class="px-4 py-2 rounded-lg font-bold text-sm bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm"><i class="fas fa-file-pdf mr-2"></i>Exportar PDF</button>
+                    <button onclick="app.exportPDF()" class="px-4 py-2 rounded-lg font-bold text-sm bg-rose-600 text-white hover:bg-rose-700 transition-colors shadow-sm" title="A4 paisagem: comparativo dos 3 cenários + tabela de recursos"><i class="fas fa-file-pdf mr-2"></i>PDF Completo</button>
+                    <button onclick="app.exportComparativoPDF()" class="px-4 py-2 rounded-lg font-bold text-sm bg-purple-600 text-white hover:bg-purple-700 transition-colors shadow-sm" title="A4 paisagem: só a Visão Estratégica"><i class="fas fa-table-columns mr-2"></i>PDF Comparativo</button>
+                    <button onclick="app.exportScenarioPDF(1)" class="px-3 py-2 rounded-lg font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm" title="A4 paisagem: apenas o Cenário 1">PDF C1</button>
+                    <button onclick="app.exportScenarioPDF(2)" class="px-3 py-2 rounded-lg font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm" title="A4 paisagem: apenas o Cenário 2">PDF C2</button>
+                    <button onclick="app.exportScenarioPDF(3)" class="px-3 py-2 rounded-lg font-bold text-sm bg-blue-600 text-white hover:bg-blue-700 transition-colors shadow-sm" title="A4 paisagem: apenas o Cenário 3">PDF C3</button>
+                    <button onclick="app.printScenarios()" class="px-4 py-2 rounded-lg font-bold text-sm bg-indigo-600 text-white hover:bg-indigo-700 transition-colors shadow-sm"><i class="fas fa-print mr-2"></i>Imprimir</button>
                 </div>
             </div>
             <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="comparativo-container"></div>
@@ -675,6 +684,34 @@
         </div>
     </div>
 
+    <!-- Modal Versões (histórico de simulações salvas) -->
+    <div id="modal-versoes" class="fixed inset-0 bg-slate-900 bg-opacity-60 dark:bg-black dark:bg-opacity-80 hidden justify-center items-center z-50 backdrop-blur-sm p-3" onclick="if(event.target === this) app.closeVersoes()">
+        <div class="bg-white dark:bg-dark-900 rounded-xl shadow-xl dark:shadow-2xl w-full max-w-[760px] p-5 border border-slate-200 dark:border-neon-blue flex flex-col max-h-[90vh]">
+            <div class="flex items-center gap-2 mb-3 border-b border-slate-200 dark:border-dark-700 pb-2">
+                <i class="fas fa-clock-rotate-left text-blue-600 dark:text-neon-blue"></i>
+                <h2 class="text-base font-bold text-slate-800 dark:text-neon-blue dark:glow-text-blue">Versões e Simulações Salvas</h2>
+                <span id="versoes-contador" class="ml-auto text-[10px] font-bold text-slate-500 dark:text-slate-400"></span>
+            </div>
+
+            <div class="bg-slate-50 dark:bg-dark-950 border border-slate-200 dark:border-dark-700 rounded p-3 mb-3 flex flex-wrap items-end gap-2">
+                <div class="flex-1 min-w-[180px]">
+                    <label for="versao-nome" class="text-[10px] uppercase font-bold text-slate-500 dark:text-slate-400">Nome da versão</label>
+                    <input id="versao-nome" type="text" maxlength="60" placeholder="Ex.: Proposta_pharma_semanal" class="w-full mt-1 bg-white dark:bg-dark-800 border border-slate-300 dark:border-dark-700 text-slate-800 dark:text-slate-200 rounded px-3 py-2 text-sm outline-none focus:border-blue-500 dark:focus:border-neon-blue">
+                </div>
+                <button onclick="app.salvarVersao()" class="px-3 py-2 bg-blue-600 dark:bg-neon-blue text-white dark:text-dark-950 font-bold rounded text-sm hover:bg-blue-700 dark:hover:bg-white transition-colors"><i class="fas fa-save mr-1"></i>Salvar estado atual</button>
+                <button onclick="document.getElementById('versao-arquivo').click()" class="px-3 py-2 bg-slate-200 dark:bg-dark-800 text-slate-700 dark:text-slate-200 font-bold rounded text-sm hover:bg-slate-300 dark:hover:bg-dark-700 transition-colors"><i class="fas fa-file-import mr-1"></i>Importar</button>
+                <button onclick="app.exportarTodasVersoes()" class="px-3 py-2 bg-slate-200 dark:bg-dark-800 text-slate-700 dark:text-slate-200 font-bold rounded text-sm hover:bg-slate-300 dark:hover:bg-dark-700 transition-colors"><i class="fas fa-file-export mr-1"></i>Backup completo</button>
+                <input id="versao-arquivo" type="file" accept=".json,application/json" class="hidden" onchange="app.importarVersaoArquivo(this)">
+            </div>
+
+            <div class="text-[10px] text-slate-500 dark:text-slate-400 mb-2">
+                Cada versão guarda as <b>4 unidades</b> completas, com todos os setores, notas, ativações por cenário e parâmetros. Restaurar substitui o estado atual.
+            </div>
+
+            <div id="versoes-lista" class="overflow-y-auto space-y-2 pr-1" style="max-height:44vh"></div>
+        </div>
+    </div>
+
     <script>
         // Engine v21 — memorial sincronizado com aba Base Teórica (tab-2)
         const ELASTICIDADE_MOI = 1.15; // DEPRECIADA v21-fix: MOI é FIXA, não usa VAR (mantida p/ histórico)
@@ -710,6 +747,7 @@
                 usarFeristas: true,
                 editingId: null,
                 notasId: null,
+                versoes: [],
                 data: JSON.parse(JSON.stringify(DEFAULT_PARK)),
                 unidades: [],
                 unidadeAtiva: 0,
@@ -750,12 +788,13 @@
                     absPct: this.state.absPct,
                     setupC1: this.state.setupC1, setupC2: this.state.setupC2, setupC3: this.state.setupC3,
                     usarPiso: this.state.usarPiso, usarFeristas: this.state.usarFeristas,
+                    versoes: this.state.versoes,
                     version: 'v22-multi'
                 };
                 try { localStorage.setItem('leanSopDashboard_V21', JSON.stringify(dataToSave)); } catch(e){}
                 // Supabase (se configurado): salva na nuvem sem bloquear a UI
                 if (supa) {
-                    const payload = { var_c2: this.state.varC2, var_c3: this.state.varC3, abs_pct: this.state.absPct, setup_c1: this.state.setupC1, setup_c2: this.state.setupC2, setup_c3: this.state.setupC3, data: { unidades: this.state.unidades, unidadeAtiva: this.state.unidadeAtiva }, version: 'v22-multi', updated_at: new Date().toISOString() };
+                    const payload = { var_c2: this.state.varC2, var_c3: this.state.varC3, abs_pct: this.state.absPct, setup_c1: this.state.setupC1, setup_c2: this.state.setupC2, setup_c3: this.state.setupC3, data: { unidades: this.state.unidades, unidadeAtiva: this.state.unidadeAtiva, versoes: this.state.versoes }, version: 'v22-multi', updated_at: new Date().toISOString() };
                     supa.from('sop_config').select('id').limit(1).then(({ data }) => {
                         if (data && data[0]) supa.from('sop_config').update(payload).eq('id', data[0].id).then(()=>{});
                         else supa.from('sop_config').insert(payload).then(()=>{});
@@ -1053,6 +1092,7 @@
                     try {
                         const parsed = JSON.parse(saved);
                         if (parsed.theme) this.state.theme = parsed.theme;
+                        this.state.versoes = this.normalizeVersoes(parsed.versoes);
                         if (parsed.unidades && Array.isArray(parsed.unidades) && parsed.unidades.length) {
                             this.state.unidades = parsed.unidades.map(u => this.normalizeUnidade(u));
                             if (parsed.unidadeAtiva !== undefined) this.state.unidadeAtiva = parsed.unidadeAtiva;
@@ -1086,6 +1126,8 @@
                             if (row.data && typeof row.data === 'object' && row.data.unidades && Array.isArray(row.data.unidades) && row.data.unidades.length) {
                                 this.state.unidades = row.data.unidades.map(u => this.normalizeUnidade(u));
                                 if (row.data.unidadeAtiva !== undefined) this.state.unidadeAtiva = row.data.unidadeAtiva;
+                                const nuvemVersoes = this.normalizeVersoes(row.data.versoes);
+                                if (nuvemVersoes.length) this.state.versoes = nuvemVersoes;
                                 this.ensureUnits();
                             } else if (row.data && Array.isArray(row.data) && row.data.length) {
                                 // Nuvem legado: trata como Alfenas (unidade ativa)
@@ -1505,6 +1547,195 @@
                 const btn = document.getElementById('notas-btn-' + id);
                 if (btn) btn.classList.toggle('text-amber-500', n > 0);
             },
+
+            // ===== Versões / Simulações salvas (histórico completo do parque) =====
+            normalizeVersoes(arr) {
+                if (!Array.isArray(arr)) return [];
+                return arr.filter(v => v && typeof v === 'object' && Array.isArray(v.unidades) && v.unidades.length)
+                    .map(v => ({
+                        id: v.id || ('v' + Date.now() + Math.random().toString(36).slice(2, 7)),
+                        nome: String(v.nome || 'Versão sem nome').slice(0, 60),
+                        data: String(v.data || ''),
+                        resumo: String(v.resumo || ''),
+                        unidadeAtiva: Number(v.unidadeAtiva) || 0,
+                        activeScenario: [1, 2, 3].includes(Number(v.activeScenario)) ? Number(v.activeScenario) : 1,
+                        unidades: v.unidades.map(u => this.normalizeUnidade(u))
+                    }))
+                    .slice(-50); // mantém no máximo 50 versões
+            },
+
+            versaoResumo() {
+                const sc = [1, 2, 3].includes(Number(this.state.activeScenario)) ? Number(this.state.activeScenario) : 1;
+                const st = this.calculateScenarioState(this.getVariation(), sc);
+                const fer = this.state.usarFeristas ? Math.ceil(st.total / 12) : 0;
+                const moAtual = this.state.data.reduce((a, r) => a + (r[`ativoC${sc}`] ? (Number(r.moAtual)||0) : 0), 0);
+                const cen = ['Previsto', 'Médio', 'Pico'][sc - 1] || '';
+                return `${this.state.unidades.length} un. · ${this.state.data.length} setores · C${sc} (${cen}) · M.O. nec. ${(st.total + fer).toFixed(1)} · atual ${moAtual.toFixed(1)}`;
+            },
+
+            salvarVersao(nome) {
+                // Garante que a unidade ativa em memória está sincronizada antes do snapshot
+                if (this.state.unidades.length) {
+                    const u = this.state.unidades[this.state.unidadeAtiva] || this.state.unidades[0];
+                    if (u) { u.data = JSON.parse(JSON.stringify(this.state.data)); u.settings = this.unitSettingsFromState(); }
+                }
+                const nomeFinal = (nome || document.getElementById('versao-nome').value.trim())
+                    || ('Simulação ' + new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }));
+                const v = {
+                    id: 'v' + Date.now() + Math.random().toString(36).slice(2, 7),
+                    nome: nomeFinal,
+                    data: new Date().toLocaleString('pt-BR'),
+                    resumo: this.versaoResumo(),
+                    unidadeAtiva: this.state.unidadeAtiva,
+                    activeScenario: this.state.activeScenario,
+                    unidades: JSON.parse(JSON.stringify(this.state.unidades))
+                };
+                this.state.versoes.push(v);
+                if (this.state.versoes.length > 50) this.state.versoes = this.state.versoes.slice(-50);
+                this.saveData();
+                const inp = document.getElementById('versao-nome');
+                if (inp) inp.value = '';
+                this.renderVersoes();
+                alert('Versão "' + v.nome + '" salva com sucesso.');
+            },
+
+            renderVersoes() {
+                const box = document.getElementById('versoes-lista');
+                if (!box) return;
+                const vs = this.state.versoes;
+                document.getElementById('versoes-contador').innerText = vs.length ? `${vs.length} de 50` : '';
+                if (!vs.length) {
+                    box.innerHTML = `<p class="text-xs text-slate-400 dark:text-slate-500 italic text-center py-6">Nenhuma versão salva ainda. Use o campo acima para guardar o estado atual do parque.</p>`;
+                    return;
+                }
+                box.innerHTML = vs.slice().reverse().map(v => `
+                    <div class="bg-slate-50 dark:bg-dark-950 border border-slate-200 dark:border-dark-700 rounded px-3 py-2 flex flex-wrap items-center gap-2">
+                        <div class="flex-1 min-w-[200px]">
+                            <p class="text-sm font-bold text-slate-800 dark:text-slate-100">${this.esc(v.nome)}</p>
+                            <p class="text-[10px] text-slate-500 dark:text-slate-400">${this.esc(v.data || '')}</p>
+                            <p class="text-[10px] text-slate-400 dark:text-slate-500 italic">${this.esc(v.resumo || '')}</p>
+                        </div>
+                        <div class="flex items-center gap-1">
+                            <button onclick="app.restaurarVersao('${v.id}')" class="px-2 py-1 text-[10px] font-bold bg-green-600 dark:bg-neon-green text-white dark:text-dark-950 rounded hover:bg-green-700 dark:hover:bg-white transition-colors"><i class="fas fa-undo mr-1"></i>Restaurar</button>
+                            <button onclick="app.duplicarVersao('${v.id}')" class="px-2 py-1 text-[10px] font-bold bg-slate-200 dark:bg-dark-800 text-slate-700 dark:text-slate-200 rounded hover:bg-slate-300 dark:hover:bg-dark-700 transition-colors" title="Duplicar"><i class="fas fa-copy"></i></button>
+                            <button onclick="app.renomearVersao('${v.id}')" class="px-2 py-1 text-[10px] font-bold bg-slate-200 dark:bg-dark-800 text-slate-700 dark:text-slate-200 rounded hover:bg-slate-300 dark:hover:bg-dark-700 transition-colors" title="Renomear"><i class="fas fa-pen"></i></button>
+                            <button onclick="app.exportarVersaoArquivo('${v.id}')" class="px-2 py-1 text-[10px] font-bold bg-slate-200 dark:bg-dark-800 text-slate-700 dark:text-slate-200 rounded hover:bg-slate-300 dark:hover:bg-dark-700 transition-colors" title="Baixar JSON"><i class="fas fa-download"></i></button>
+                            <button onclick="app.excluirVersao('${v.id}')" class="px-2 py-1 text-[10px] font-bold bg-slate-200 dark:bg-dark-800 text-slate-500 hover:text-red-500 dark:hover:text-neon-alert rounded transition-colors" title="Excluir"><i class="fas fa-trash-alt"></i></button>
+                        </div>
+                    </div>`).join('');
+            },
+
+            restaurarVersao(id) {
+                const v = this.state.versoes.find(x => x.id === id);
+                if (!v) return;
+                if (!confirm(`Restaurar a versão "${v.nome}"?\n\nO estado atual (todas as unidades) será substituído por esta versão.`)) return;
+                this.state.unidades = JSON.parse(JSON.stringify(v.unidades)).map(u => this.normalizeUnidade(u));
+                this.state.unidadeAtiva = Number(v.unidadeAtiva) || 0;
+                if (this.state.unidadeAtiva >= this.state.unidades.length) this.state.unidadeAtiva = 0;
+                if ([1, 2, 3].includes(Number(v.activeScenario))) this.state.activeScenario = Number(v.activeScenario);
+                this.ensureUnits();
+                this.applyActiveUnit();
+                this.ensureFullPark();
+                this.reorderHierarchy();
+                this.syncGlobalInputs();
+                this.render();
+                this.saveData();
+                this.closeVersoes();
+                alert('Versão "' + v.nome + '" restaurada.');
+            },
+
+            duplicarVersao(id) {
+                const v = this.state.versoes.find(x => x.id === id);
+                if (!v) return;
+                const copia = JSON.parse(JSON.stringify(v));
+                copia.id = 'v' + Date.now() + Math.random().toString(36).slice(2, 7);
+                copia.nome = (v.nome + ' (cópia)').slice(0, 60);
+                copia.data = new Date().toLocaleString('pt-BR');
+                this.state.versoes.push(copia);
+                if (this.state.versoes.length > 50) this.state.versoes = this.state.versoes.slice(-50);
+                this.saveData();
+                this.renderVersoes();
+            },
+
+            renomearVersao(id) {
+                const v = this.state.versoes.find(x => x.id === id);
+                if (!v) return;
+                const novo = prompt('Novo nome da versão:', v.nome);
+                if (novo === null) return;
+                const limpo = novo.trim().slice(0, 60);
+                if (!limpo) return;
+                v.nome = limpo;
+                this.saveData();
+                this.renderVersoes();
+            },
+
+            excluirVersao(id) {
+                const v = this.state.versoes.find(x => x.id === id);
+                if (!v) return;
+                if (!confirm(`Excluir a versão "${v.nome}"?\n\nEsta ação não pode ser desfeita.`)) return;
+                this.state.versoes = this.state.versoes.filter(x => x.id !== id);
+                this.saveData();
+                this.renderVersoes();
+            },
+
+            exportarVersaoArquivo(id) {
+                const v = this.state.versoes.find(x => x.id === id);
+                if (!v) return;
+                const payload = { app: 'SOP-Capacidade', tipo: 'versao', version: 'v22-multi', exportedAt: new Date().toISOString(), versao: v };
+                const nome = (v.nome || 'versao').replace(/[^\w\-]+/g, '_').slice(0, 50);
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `SOP_${nome}_${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            },
+
+            exportarTodasVersoes() {
+                if (!this.state.versoes.length) { alert('Não há versões salvas para exportar.'); return; }
+                const payload = { app: 'SOP-Capacidade', tipo: 'versoes-todas', version: 'v22-multi', exportedAt: new Date().toISOString(), versoes: this.state.versoes };
+                const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+                const a = document.createElement('a');
+                a.href = URL.createObjectURL(blob);
+                a.download = `SOP_historico_completo_${new Date().toISOString().slice(0, 10)}.json`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+            },
+
+            importarVersaoArquivo(input) {
+                const file = input.files && input.files[0];
+                input.value = '';
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () => {
+                    try {
+                        const p = JSON.parse(reader.result);
+                        let versoes = [];
+                        if (p && p.tipo === 'versoes-todas' && Array.isArray(p.versoes)) versoes = p.versoes;
+                        else if (p && p.versao) versoes = [p.versao];
+                        else if (p && p.tipo === 'versao' && p.unidades) versoes = [p];
+                        if (!versoes.length) { alert('Arquivo inválido: nenhuma versão reconhecida.'); return; }
+                        const novas = this.normalizeVersoes(versoes);
+                        if (!novas.length) { alert('Arquivo inválido: versões sem unidades.'); return; }
+                        const nomes = novas.map(v => v.nome).join(', ');
+                        if (!confirm(`Importar ${novas.length} versão(ões):\n\n${nomes}\n\nElas serão adicionadas ao histórico atual.`)) return;
+                        novas.forEach(v => { v.id = 'v' + Date.now() + Math.random().toString(36).slice(2, 7); v.data = new Date().toLocaleString('pt-BR'); });
+                        this.state.versoes = this.state.versoes.concat(novas);
+                        if (this.state.versoes.length > 50) this.state.versoes = this.state.versoes.slice(-50);
+                        this.saveData();
+                        this.renderVersoes();
+                        alert(`${novas.length} versão(ões) importada(s).`);
+                    } catch(e) { alert('Erro ao ler o arquivo: ' + e.message); }
+                };
+                reader.readAsText(file);
+            },
+
+            openVersoes() {
+                this.renderVersoes();
+                document.getElementById('modal-versoes').classList.replace('hidden', 'flex');
+            },
+
+            closeVersoes() { document.getElementById('modal-versoes').classList.replace('flex', 'hidden'); },
             
             addNewSector() {
                 const nome = document.getElementById('new-nome').value.trim() || 'NOVO SETOR';
@@ -1782,7 +2013,7 @@
                 doc.setFontSize(11);
                 doc.setFont('helvetica', 'bold');
                 doc.setTextColor(30, 58, 138);
-                doc.text('Resumo Consolidado (FTE — feristas apenas na Necessária)', 14, y);
+                doc.text('Visão Estratégica: Comparativo de Cenários', 14, y);
                 y += 4;
                 const cards = [['Cenário 1: Previsto', stC1], ['Cenário 2: Médio', stC2], ['Cenário 3: Pico', stC3]];
                 const cw = (W - 28 - 10) / 3;
@@ -1793,7 +2024,7 @@
                     const totalEx = st.total + fer;
                     const atualEx = atualTotal;
                     const diff = totalEx - atualEx;
-                    const hh = 34;
+                    const hh = 56;
                     doc.setDrawColor(148, 163, 184);
                     doc.setFillColor(241 - (i === 2 ? 2 : 0), 245 - (i === 2 ? 2 : 0), 249 - (i === 2 ? 12 : 0));
                     doc.roundedRect(x, y, cw, hh, 2, 2, 'FD');
@@ -1803,15 +2034,25 @@
                     doc.text(title, x + 4, y + 7);
                     doc.setFontSize(8.5);
                     doc.setFont('helvetica', 'normal');
+                    const gargTxt = st.gargalos.length ? st.gargalos.map(g => `${g.name} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(0) + '%'}`).join(', ') : 'nenhum';
+                    const valTxt = st.validacoes.length ? st.validacoes.map(v => `${v.nome}: filhas ${v.demFilhas.toFixed(0)}t ${v.alerta ? '>' : '<='} mae ${v.demPropria.toFixed(0)}t`).join(', ') : 'nenhuma';
+                    const sugFmt = s => s.maxed ? `${s.name}: sem degrau — avaliar 4º turno/nova linha` : `${s.name} → ${s.nextBase ? s.nextBase + 'h' : 'turma limitada'}${s.resolves ? ' ✓' : ''}`;
+                    const sugTxt = st.sugestoes.length ? st.sugestoes.map(sugFmt).join(', ') : 'nenhuma';
                     const lines = [
                         'Total Necessário (c/ abs.): ' + totalEx.toFixed(1) + ' FTE',
                         'Direta ' + st.moDir.toFixed(1) + ' + Indireta ' + st.moInd.toFixed(1) + ' + ' + fer + ' feristas',
                         'M.O. Atual: ' + atualEx.toFixed(1) + ' FTE',
-                        diff > 0.5 ? '→ Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? '→ Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : '→ Equilibrado'
+                        diff > 0.5 ? '→ Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? '→ Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : '→ Equilibrado',
+                        'Gargalos (>95%): ' + gargTxt,
+                        'Validações hierárquicas: ' + valTxt,
+                        'Sugestão de turnos (>100%): ' + sugTxt
                     ];
-                    lines.forEach((ln, j) => doc.text(ln, x + 4, y + 13 + j * 5.5));
+                    lines.forEach((ln, j) => {
+                        const wrap = doc.splitTextToSize(ln, cw - 8);
+                        doc.text(wrap, x + 4, y + 13 + j * 5.5, { lineHeightFactor: 1.15 });
+                    });
                 });
-                y += 40;
+                y += 62;
 
                 const body = this.state.data.filter(r => r.ativoC1 || r.ativoC2 || r.ativoC3).map(r => {
                     const m1 = this.rowMetrics(r, 1, varC1), m2 = this.rowMetrics(r, 2, varC2), m3 = this.rowMetrics(r, 3, varC3);
@@ -1849,6 +2090,225 @@
                 doc.text('• Absenteísmo de ' + this.state.absPct + '% aplicado sobre toda a M.O. calculada; feristas = ⌈M.O. base ÷ 12⌉ somados apenas ao Total M.O. Necessária.', 14, yy + 10);
                 doc.text('• Ocupação acima de ' + LIMITE_GARGALO + '% indica gargalo real (Tambor); acima de ' + LIMITE_ATENCAO + '% indica atenção de turno.', 14, yy + 15);
                 doc.save('Cenarios-SOP_' + new Date().toISOString().slice(0, 10) + '.pdf');
+            },
+
+            // ===== Export individual de um cenário em A4 paisagem =====
+            exportScenarioPDF(n) {
+                if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !window.jspdf.jsPDF.API || typeof window.jspdf.jsPDF.API.autoTable !== 'function') {
+                    alert('A biblioteca jsPDF ainda não carregou. Verifique a conexão com a internet e recarregue a página.');
+                    return;
+                }
+                const num = [1, 2, 3].includes(Number(n)) ? Number(n) : 1;
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const W = doc.internal.pageSize.getWidth(), H = doc.internal.pageSize.getHeight();
+
+                const varPct = num === 1 ? 0 : (num === 2 ? this.state.varC2 : this.state.varC3);
+                const titulo = ['Cenário 1: Previsto', 'Cenário 2: Médio', 'Cenário 3: Pico'][num - 1];
+                const variacao = varPct / 100;
+                const setup = this.getSetupHours(num);
+                const st = this.calculateScenarioState(variacao, num);
+                const fer = this.state.usarFeristas ? Math.ceil(st.total / 12) : 0;
+                const totalEx = st.total + fer;
+                const atualEx = this.state.data.reduce((acc, r) => acc + (r.ativoC1 ? (Number(r.moAtual) || 0) : 0), 0);
+                const diff = totalEx - atualEx;
+
+                const uNome = (this.state.unidades[this.state.unidadeAtiva] || {}).nome || '';
+                const stamp = 'Gerado em ' + new Date().toLocaleString('pt-BR');
+
+                // Cabeçalho
+                doc.setFillColor(30, 58, 138);
+                doc.rect(0, 0, W, 26, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(15);
+                doc.text('Painel de S&OP Data-Driven', 14, 11);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(11);
+                doc.text(titulo, 14, 17.5);
+                doc.setFontSize(8.5);
+                doc.text(`${uNome ? 'Unidade: ' + uNome + ' · ' : ''}${stamp} · Demanda ${varPct > 0 ? '+' : ''}${varPct}% · Setup ${setup} h/dia · Absenteísmo ${this.state.absPct}%`, 14, 22.5);
+
+                // Card do cenário
+                let y = 34;
+                doc.setFillColor(248, 250, 252);
+                doc.setDrawColor(148, 163, 184);
+                doc.roundedRect(14, y, W - 28, 44, 2, 2, 'FD');
+                doc.setTextColor(15, 23, 42);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(10);
+                doc.text('Indicadores do Cenário (FTE — feristas apenas na Necessária)', 18, y + 7);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(9);
+                const gargTxt = st.gargalos.length ? st.gargalos.map(g => `${g.name} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(1) + '%'}`).join(' · ') : 'sem gargalos acima de ' + LIMITE_GARGALO + '%';
+                const valTxt = st.validacoes.length ? st.validacoes.map(v => `${v.nome}: filhas ${v.demFilhas.toFixed(0)}t ${v.alerta ? '>' : '<='} mae ${v.demPropria.toFixed(0)}t`).join(' · ') : 'nenhuma';
+                const sugFmt = s => s.maxed ? `${s.name}: sem degrau — avaliar 4º turno/nova linha` : `${s.name} → ${s.nextBase ? s.nextBase + 'h' : 'turma limitada'}${s.resolves ? ' ✓' : ''}`;
+                const sugTxt = st.sugestoes.length ? st.sugestoes.map(sugFmt).join(' · ') : 'nenhuma';
+                [
+                    'Total Necessário (c/ absenteísmo): ' + totalEx.toFixed(1) + ' FTE  (' + st.moDir.toFixed(1) + ' direta + ' + st.moInd.toFixed(1) + ' indireta + ' + fer + ' feristas)',
+                    'M.O. Atual (Cenário 1): ' + atualEx.toFixed(1) + ' FTE  ·  ' + (diff > 0.5 ? 'Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? 'Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : 'Equilibrado'),
+                    'Gargalos (OC > ' + LIMITE_GARGALO + '%): ' + gargTxt,
+                    'Validações hierárquicas: ' + valTxt,
+                    'Sugestão de turnos (OC > 100%): ' + sugTxt
+                ].forEach((ln, j) => {
+                    const wrap = doc.splitTextToSize(ln, W - 36);
+                    doc.text(wrap, 18, y + 14 + j * 6, { lineHeightFactor: 1.2 });
+                });
+                y += 52;
+
+                // Tabela de recursos do cenário
+                const rows = this.state.data.filter(r => r[`ativoC${num}`]).map(r => {
+                    const m = this.rowMetrics(r, num, variacao);
+                    const oc = m.isIndireto ? 'N/A' : (isFinite(m.ocupacao) ? m.ocupacao.toFixed(1) + '%' : 'ERRO');
+                    const nNotas = Array.isArray(r.notas) ? r.notas.length : 0;
+                    return [
+                        this.esc(r.name), r.tipo || '—',
+                        (Number(r.capNominal) || 0).toFixed(1),
+                        r.eficiencia !== undefined ? r.eficiencia : '—',
+                        setup > 0 ? (Number(r.tempoUtil) || 0) + ' → ' + Math.max(0, (Number(r.tempoUtil) || 0) - setup) : (Number(r.tempoUtil) || 0),
+                        m.capDiaria.toFixed(1),
+                        (Number(r.demandaMensal) || 0).toFixed(0),
+                        m.demDiaria.toFixed(1),
+                        oc, m.moe.toFixed(1), String(Number(r.moAtual) || 0),
+                        nNotas ? nNotas + (nNotas === 1 ? ' nota' : ' notas') : '—'
+                    ];
+                });
+
+                doc.autoTable({
+                    head: [['Setor / Recurso', 'Tipo', 'Cap. Nom. (t/h)', 'Efic. (%)', 'T. Útil (h)', 'Cap. Diária (t/d)', 'Demanda (t/mês)', 'Dem. Diária (t/d)', 'Ocup. (%)', 'M.O. Calc.', 'M.O. Atual', 'Notas']],
+                    body: rows,
+                    startY: y,
+                    margin: { left: 14, right: 14, top: 30, bottom: 14 },
+                    styles: { fontSize: 7.5, cellPadding: 1.8 },
+                    headStyles: { fillColor: [30, 58, 138], fontSize: 7.5 },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    columnStyles: { 0: { cellWidth: 44 }, 8: { halign: 'right' }, 9: { halign: 'right' }, 10: { halign: 'right' } },
+                    didDrawPage: (d) => {
+                        const pg = d.doc.internal.pageSize.getHeight();
+                        d.doc.setFontSize(7.5);
+                        d.doc.setTextColor(100, 116, 139);
+                        d.doc.text('SOP-Capacidade · ' + titulo + ' · ' + uNome + ' · Motor de capacidade v22', 14, pg - 8);
+                        d.doc.text('Página ' + d.pageNumber, d.doc.internal.pageSize.getWidth() - 20, pg - 8);
+                    }
+                });
+
+                let yy = (doc.lastAutoTable ? doc.lastAutoTable.finalY : y) + 12;
+                if (yy + 20 > H) { doc.addPage(); yy = 20; }
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(9);
+                doc.setTextColor(30, 58, 138);
+                doc.text('Metodologia', 14, yy);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(15, 23, 42);
+                doc.text('Demanda do cenário = demanda base × (1 + variação) · Setup desconta do tempo útil · Absenteísmo de ' + this.state.absPct + '% aplicado sobre a M.O. calculada · Feristas = ⌈M.O. base ÷ 12⌉ somados apenas ao Total Necessário · Piso de M.O. mínima ' + (this.state.usarPiso ? 'ativo' : 'inativo') + '.', 14, yy + 5);
+                doc.save(`SOP_Cenario_${num}_${(uNome || 'unidade').replace(/[^\w\-]+/g, '')}_${new Date().toISOString().slice(0, 10)}.pdf`);
+            },
+
+            // Exporta a Visão Estratégica (comparativo) isoladamente, em paisagem
+            exportComparativoPDF() {
+                if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !window.jspdf.jsPDF.API || typeof window.jspdf.jsPDF.API.autoTable !== 'function') {
+                    alert('A biblioteca jsPDF ainda não carregou. Verifique a conexão com a internet e recarregue a página.');
+                    return;
+                }
+                const { jsPDF } = window.jspdf;
+                const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+                const W = doc.internal.pageSize.getWidth();
+
+                const uNome = (this.state.unidades[this.state.unidadeAtiva] || {}).nome || '';
+                doc.setFillColor(30, 58, 138);
+                doc.rect(0, 0, W, 26, 'F');
+                doc.setTextColor(255, 255, 255);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(15);
+                doc.text('Visão Estratégica: Comparativo de Cenários', 14, 11);
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8.5);
+                doc.text(`${uNome ? 'Unidade: ' + uNome + ' · ' : ''}Gerado em ${new Date().toLocaleString('pt-BR')} · Absenteísmo ${this.state.absPct}% · Setups ${this.state.setupC1}/${this.state.setupC2}/${this.state.setupC3} h/dia`, 14, 17.5);
+
+                const varC1 = 0, varC2 = this.state.varC2 / 100, varC3 = this.state.varC3 / 100;
+                const states = [
+                    ['Cenário 1: Previsto', this.calculateScenarioState(varC1, 1), 0],
+                    ['Cenário 2: Médio', this.calculateScenarioState(varC2, 2), this.state.varC2],
+                    ['Cenário 3: Pico', this.calculateScenarioState(varC3, 3), this.state.varC3]
+                ];
+                const atualEx = this.state.data.reduce((acc, r) => acc + (r.ativoC1 ? (Number(r.moAtual) || 0) : 0), 0);
+
+                let y = 36;
+                const cw = (W - 28 - 10) / 3;
+                states.forEach(([title, st, v], i) => {
+                    const x = 14 + i * (cw + 5);
+                    const fer = this.state.usarFeristas ? Math.ceil(st.total / 12) : 0;
+                    const totalEx = st.total + fer;
+                    const diff = totalEx - atualEx;
+                    const setup = this.getSetupHours(i + 1);
+                    doc.setDrawColor(148, 163, 184);
+                    doc.setFillColor(248, 250, 252);
+                    doc.roundedRect(x, y, cw, 76, 2, 2, 'FD');
+                    doc.setTextColor(15, 23, 42);
+                    doc.setFont('helvetica', 'bold');
+                    doc.setFontSize(11);
+                    doc.text(title, x + 4, y + 8);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(7.5);
+                    doc.setTextColor(100, 116, 139);
+                    doc.text(`Demanda ${v > 0 ? '+' : ''}${v}% · Setup ${setup} h/dia · Abs. ${this.state.absPct}%`, x + 4, y + 13);
+                    doc.setTextColor(15, 23, 42);
+                    doc.setFontSize(9);
+                    const gargTxt = st.gargalos.length ? st.gargalos.map(g => `${g.name} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(0) + '%'}`).join(', ') : 'nenhum';
+                    const valTxt = st.validacoes.length ? st.validacoes.map(v2 => `${v2.nome}: filhas ${v2.demFilhas.toFixed(0)}t ${v2.alerta ? '>' : '<='} mae ${v2.demPropria.toFixed(0)}t`).join(', ') : 'nenhuma';
+                    const sugFmt = s => s.maxed ? `${s.name}: sem degrau — avaliar 4º turno/nova linha` : `${s.name} → ${s.nextBase ? s.nextBase + 'h' : 'turma limitada'}${s.resolves ? ' ✓' : ''}`;
+                    const sugTxt = st.sugestoes.length ? st.sugestoes.map(sugFmt).join(', ') : 'nenhuma';
+                    const lines = [
+                        'Total Necessário: ' + totalEx.toFixed(1) + ' FTE',
+                        '(Direta ' + st.moDir.toFixed(1) + ' + Indireta ' + st.moInd.toFixed(1) + ' + ' + fer + ' feristas)',
+                        'M.O. Atual: ' + atualEx.toFixed(1) + ' FTE',
+                        diff > 0.5 ? 'Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? 'Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : 'Equilibrado',
+                        '',
+                        'Gargalos (OC > ' + LIMITE_GARGALO + '%): ' + gargTxt,
+                        '',
+                        'Validações hierárquicas: ' + valTxt,
+                        '',
+                        'Sugestão de turnos (OC > 100%): ' + sugTxt
+                    ];
+                    let ly = y + 20;
+                    lines.forEach(ln => {
+                        if (!ln) { ly += 2.5; return; }
+                        const wrap = doc.splitTextToSize(ln, cw - 8);
+                        doc.text(wrap, x + 4, ly, { lineHeightFactor: 1.2 });
+                        ly += 5;
+                    });
+                });
+                y += 82;
+
+                const resumo = [
+                    ['Cenário', 'Demanda', 'Setup (h/dia)', 'M.O. Necessária', 'M.O. Atual', 'Δ Equipe', 'Gargalos', 'Sugestões de turno'],
+                    ...states.map(([title, st, v], i) => {
+                        const fer = this.state.usarFeristas ? Math.ceil(st.total / 12) : 0;
+                        const d = (st.total + fer) - atualEx;
+                        return [title, (v > 0 ? '+' : '') + v + '%', this.getSetupHours(i + 1) + ' h', (st.total + fer).toFixed(1), atualEx.toFixed(1),
+                            d > 0.5 ? 'Déficit ' + d.toFixed(1) : d < -0.5 ? 'Excesso ' + Math.abs(d).toFixed(1) : 'Equilibrado',
+                            String(st.gargalos.length), String(st.sugestoes.length)];
+                    })
+                ];
+                doc.autoTable({
+                    head: [resumo[0]],
+                    body: resumo.slice(1),
+                    startY: y,
+                    margin: { left: 14, right: 14, top: 30, bottom: 14 },
+                    styles: { fontSize: 8.5, cellPadding: 2.5, halign: 'center' },
+                    headStyles: { fillColor: [30, 58, 138], fontSize: 8.5 },
+                    columnStyles: { 0: { halign: 'left', cellWidth: 40 } },
+                    alternateRowStyles: { fillColor: [248, 250, 252] },
+                    didDrawPage: (d) => {
+                        const pg = d.doc.internal.pageSize.getHeight();
+                        d.doc.setFontSize(7.5);
+                        d.doc.setTextColor(100, 116, 139);
+                        d.doc.text('SOP-Capacidade · Visão Estratégica · ' + uNome, 14, pg - 8);
+                        d.doc.text('Página ' + d.pageNumber, d.doc.internal.pageSize.getWidth() - 20, pg - 8);
+                    }
+                });
+                doc.save(`SOP_Comparativo_${(uNome || 'unidade').replace(/[^\w\-]+/g, '')}_${new Date().toISOString().slice(0, 10)}.pdf`);
             },
 
             esc(s) { return String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); },
@@ -2295,6 +2755,8 @@
                 this.renderOrganograma();
                 this.renderComparativo();
                 this.renderUnitSelectors();
+                const vb = document.getElementById('versoes-badge');
+                if (vb) { vb.textContent = this.state.versoes.length; vb.classList.toggle('hidden', this.state.versoes.length === 0); }
                 this.saveData();
 
                 if (activeId) {
