@@ -1982,6 +1982,62 @@
                 window.print();
             },
 
+            // ===== Helpers de card para os PDFs =====
+            // Converte 1 ponto (pt) em milímetros, unidade usada nos PDFs.
+            ptParaMm(pt) { return pt / 2.834645669; },
+
+            // Monta o layout de um card SEM desenhar: quebra cada linha de texto
+            // de verdade e reserva a altura necessária, evitando sobreposição.
+            layoutCardCenario(doc, cfg) {
+                const pad = cfg.pad != null ? cfg.pad : 4;
+                const fs = cfg.fontSize || 8.5;
+                const gap = cfg.gap != null ? cfg.gap : 1.1;
+                const inner = cfg.w - pad * 2;
+                const blocos = [];
+                let h = pad;
+
+                const add = (txt, size, bold, color) => {
+                    if (txt == null || txt === '') return;
+                    const wrap = Array.isArray(txt) ? txt : doc.splitTextToSize(String(txt), inner);
+                    if (!wrap.length) return;
+                    const lh = this.ptParaMm(size * 1.16);
+                    blocos.push({ linhas: wrap, size, bold, color, y: h + lh * 0.82 });
+                    h += wrap.length * lh + gap;
+                };
+
+                add(cfg.titulo, cfg.tituloSize || 10, true, [15, 23, 42]);
+                add(cfg.subtitulo, cfg.subSize || 7.5, false, [100, 116, 139]);
+                (cfg.linhas || []).forEach(ln => {
+                    if (ln === '') h += this.ptParaMm(fs * 0.5);
+                    else add(ln, fs, !!cfg.bold, [15, 23, 42]);
+                });
+
+                return { blocos, altura: h - gap + pad };
+            },
+
+            // Desenha o card já medido. cfg.h permite igualar a altura dos 3 cards.
+            desenharCardCenario(doc, cfg, layout) {
+                const pad = cfg.pad != null ? cfg.pad : 4;
+                const h = cfg.h || layout.altura;
+                doc.setDrawColor(148, 163, 184);
+                const fill = cfg.fill || [248, 250, 252];
+                doc.setFillColor(fill[0], fill[1], fill[2]);
+                doc.roundedRect(cfg.x, cfg.y, cfg.w, h, 2, 2, 'FD');
+                layout.blocos.forEach(b => {
+                    doc.setTextColor(b.color[0], b.color[1], b.color[2]);
+                    doc.setFont('helvetica', b.bold ? 'bold' : 'normal');
+                    doc.setFontSize(b.size);
+                    doc.text(b.linhas, cfg.x + pad, b.y, { lineHeightFactor: 1.16 });
+                });
+            },
+
+            // Limita listas longas para o card não crescer sem controle.
+            resumirLista(itens, max, fmt) {
+                if (!itens.length) return null;
+                const head = itens.slice(0, max).map(fmt).join(', ');
+                return head + (itens.length > max ? ` (+${itens.length - max})` : '');
+            },
+
             exportPDF() {
                 if (typeof window.jspdf === 'undefined' || typeof window.jspdf.jsPDF === 'undefined' || !window.jspdf.jsPDF.API || typeof window.jspdf.jsPDF.API.autoTable !== 'function') {
                     alert('A biblioteca jsPDF ainda não carregou. Verifique a conexão com a internet e recarregue a página.');
@@ -2018,41 +2074,32 @@
                 const cards = [['Cenário 1: Previsto', stC1], ['Cenário 2: Médio', stC2], ['Cenário 3: Pico', stC3]];
                 const cw = (W - 28 - 10) / 3;
                 doc.setFont('helvetica', 'normal');
-                cards.forEach(([title, st], i) => {
-                    const x = 14 + i * (cw + 5);
+
+                const cfgs = cards.map(([title, st], i) => {
                     const fer = this.state.usarFeristas ? Math.ceil(st.total / 12) : 0;
                     const totalEx = st.total + fer;
-                    const atualEx = atualTotal;
-                    const diff = totalEx - atualEx;
-                    const hh = 56;
-                    doc.setDrawColor(148, 163, 184);
-                    doc.setFillColor(241 - (i === 2 ? 2 : 0), 245 - (i === 2 ? 2 : 0), 249 - (i === 2 ? 12 : 0));
-                    doc.roundedRect(x, y, cw, hh, 2, 2, 'FD');
-                    doc.setTextColor(15, 23, 42);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(10);
-                    doc.text(title, x + 4, y + 7);
-                    doc.setFontSize(8.5);
-                    doc.setFont('helvetica', 'normal');
-                    const gargTxt = st.gargalos.length ? st.gargalos.map(g => `${g.name} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(0) + '%'}`).join(', ') : 'nenhum';
-                    const valTxt = st.validacoes.length ? st.validacoes.map(v => `${v.nome}: filhas ${v.demFilhas.toFixed(0)}t ${v.alerta ? '>' : '<='} mae ${v.demPropria.toFixed(0)}t`).join(', ') : 'nenhuma';
+                    const diff = totalEx - atualTotal;
+                    const gargTxt = this.resumirLista(st.gargalos, 4, g => `${g.name} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(0) + '%'}`) || 'nenhum';
+                    const valTxt = this.resumirLista(st.validacoes, 4, v => `${v.nome}: filhas ${v.demFilhas.toFixed(0)}t ${v.alerta ? '>' : '<='} mae ${v.demPropria.toFixed(0)}t`) || 'nenhuma';
                     const sugFmt = s => s.maxed ? `${s.name}: sem degrau — avaliar 4º turno/nova linha` : `${s.name} → ${s.nextBase ? s.nextBase + 'h' : 'turma limitada'}${s.resolves ? ' ✓' : ''}`;
-                    const sugTxt = st.sugestoes.length ? st.sugestoes.map(sugFmt).join(', ') : 'nenhuma';
-                    const lines = [
-                        'Total Necessário (c/ abs.): ' + totalEx.toFixed(1) + ' FTE',
-                        'Direta ' + st.moDir.toFixed(1) + ' + Indireta ' + st.moInd.toFixed(1) + ' + ' + fer + ' feristas',
-                        'M.O. Atual: ' + atualEx.toFixed(1) + ' FTE',
-                        diff > 0.5 ? '→ Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? '→ Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : '→ Equilibrado',
-                        'Gargalos (>95%): ' + gargTxt,
-                        'Validações hierárquicas: ' + valTxt,
-                        'Sugestão de turnos (>100%): ' + sugTxt
-                    ];
-                    lines.forEach((ln, j) => {
-                        const wrap = doc.splitTextToSize(ln, cw - 8);
-                        doc.text(wrap, x + 4, y + 13 + j * 5.5, { lineHeightFactor: 1.15 });
-                    });
+                    const sugTxt = this.resumirLista(st.sugestoes, 4, sugFmt) || 'nenhuma';
+                    return {
+                        x: 14 + i * (cw + 5), y, w: cw, titulo: title,
+                        linhas: [
+                            'Total Necessário (c/ abs.): ' + totalEx.toFixed(1) + ' FTE',
+                            'Direta ' + st.moDir.toFixed(1) + ' + Indireta ' + st.moInd.toFixed(1) + ' + ' + fer + ' feristas',
+                            'M.O. Atual: ' + atualTotal.toFixed(1) + ' FTE',
+                            diff > 0.5 ? '→ Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? '→ Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : '→ Equilibrado',
+                            'Gargalos (>95%): ' + gargTxt,
+                            'Validações hierárquicas: ' + valTxt,
+                            'Sugestão de turnos (>100%): ' + sugTxt
+                        ]
+                    };
                 });
-                y += 62;
+                const layouts = cfgs.map(c => this.layoutCardCenario(doc, c));
+                const cardH = Math.max.apply(null, layouts.map(l => l.altura));
+                cfgs.forEach((c, i) => this.desenharCardCenario(doc, Object.assign({}, c, { h: cardH }), layouts[i]));
+                y += cardH + 6;
 
                 const body = this.state.data.filter(r => r.ativoC1 || r.ativoC2 || r.ativoC3).map(r => {
                     const m1 = this.rowMetrics(r, 1, varC1), m2 = this.rowMetrics(r, 2, varC2), m3 = this.rowMetrics(r, 3, varC3);
@@ -2131,30 +2178,24 @@
 
                 // Card do cenário
                 let y = 34;
-                doc.setFillColor(248, 250, 252);
-                doc.setDrawColor(148, 163, 184);
-                doc.roundedRect(14, y, W - 28, 44, 2, 2, 'FD');
-                doc.setTextColor(15, 23, 42);
-                doc.setFont('helvetica', 'bold');
-                doc.setFontSize(10);
-                doc.text('Indicadores do Cenário (FTE — feristas apenas na Necessária)', 18, y + 7);
-                doc.setFont('helvetica', 'normal');
-                doc.setFontSize(9);
-                const gargTxt = st.gargalos.length ? st.gargalos.map(g => `${g.name} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(1) + '%'}`).join(' · ') : 'sem gargalos acima de ' + LIMITE_GARGALO + '%';
-                const valTxt = st.validacoes.length ? st.validacoes.map(v => `${v.nome}: filhas ${v.demFilhas.toFixed(0)}t ${v.alerta ? '>' : '<='} mae ${v.demPropria.toFixed(0)}t`).join(' · ') : 'nenhuma';
+                const gargTxt = this.resumirLista(st.gargalos, 6, g => `${g.name} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(1) + '%'}`) || ('sem gargalos acima de ' + LIMITE_GARGALO + '%');
+                const valTxt = this.resumirLista(st.validacoes, 6, v => `${v.nome}: filhas ${v.demFilhas.toFixed(0)}t ${v.alerta ? '>' : '<='} mae ${v.demPropria.toFixed(0)}t`) || 'nenhuma';
                 const sugFmt = s => s.maxed ? `${s.name}: sem degrau — avaliar 4º turno/nova linha` : `${s.name} → ${s.nextBase ? s.nextBase + 'h' : 'turma limitada'}${s.resolves ? ' ✓' : ''}`;
-                const sugTxt = st.sugestoes.length ? st.sugestoes.map(sugFmt).join(' · ') : 'nenhuma';
-                [
-                    'Total Necessário (c/ absenteísmo): ' + totalEx.toFixed(1) + ' FTE  (' + st.moDir.toFixed(1) + ' direta + ' + st.moInd.toFixed(1) + ' indireta + ' + fer + ' feristas)',
-                    'M.O. Atual (Cenário 1): ' + atualEx.toFixed(1) + ' FTE  ·  ' + (diff > 0.5 ? 'Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? 'Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : 'Equilibrado'),
-                    'Gargalos (OC > ' + LIMITE_GARGALO + '%): ' + gargTxt,
-                    'Validações hierárquicas: ' + valTxt,
-                    'Sugestão de turnos (OC > 100%): ' + sugTxt
-                ].forEach((ln, j) => {
-                    const wrap = doc.splitTextToSize(ln, W - 36);
-                    doc.text(wrap, 18, y + 14 + j * 6, { lineHeightFactor: 1.2 });
-                });
-                y += 52;
+                const sugTxt = this.resumirLista(st.sugestoes, 6, sugFmt) || 'nenhuma';
+                const cardCfg = {
+                    x: 14, y, w: W - 28, pad: 4, fontSize: 9, tituloSize: 10,
+                    titulo: 'Indicadores do Cenário (FTE — feristas apenas na Necessária)',
+                    linhas: [
+                        'Total Necessário (c/ absenteísmo): ' + totalEx.toFixed(1) + ' FTE  (' + st.moDir.toFixed(1) + ' direta + ' + st.moInd.toFixed(1) + ' indireta + ' + fer + ' feristas)',
+                        'M.O. Atual (Cenário 1): ' + atualEx.toFixed(1) + ' FTE  ·  ' + (diff > 0.5 ? 'Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? 'Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : 'Equilibrado'),
+                        'Gargalos (OC > ' + LIMITE_GARGALO + '%): ' + gargTxt,
+                        'Validações hierárquicas: ' + valTxt,
+                        'Sugestão de turnos (OC > 100%): ' + sugTxt
+                    ]
+                };
+                const cardL = this.layoutCardCenario(doc, cardCfg);
+                this.desenharCardCenario(doc, cardCfg, cardL);
+                y += cardL.altura + 8;
 
                 // Tabela de recursos do cenário
                 const rows = this.state.data.filter(r => r[`ativoC${num}`]).map(r => {
@@ -2236,50 +2277,35 @@
 
                 let y = 36;
                 const cw = (W - 28 - 10) / 3;
-                states.forEach(([title, st, v], i) => {
-                    const x = 14 + i * (cw + 5);
+                const cfgs = states.map(([title, st, v], i) => {
                     const fer = this.state.usarFeristas ? Math.ceil(st.total / 12) : 0;
                     const totalEx = st.total + fer;
                     const diff = totalEx - atualEx;
                     const setup = this.getSetupHours(i + 1);
-                    doc.setDrawColor(148, 163, 184);
-                    doc.setFillColor(248, 250, 252);
-                    doc.roundedRect(x, y, cw, 76, 2, 2, 'FD');
-                    doc.setTextColor(15, 23, 42);
-                    doc.setFont('helvetica', 'bold');
-                    doc.setFontSize(11);
-                    doc.text(title, x + 4, y + 8);
-                    doc.setFont('helvetica', 'normal');
-                    doc.setFontSize(7.5);
-                    doc.setTextColor(100, 116, 139);
-                    doc.text(`Demanda ${v > 0 ? '+' : ''}${v}% · Setup ${setup} h/dia · Abs. ${this.state.absPct}%`, x + 4, y + 13);
-                    doc.setTextColor(15, 23, 42);
-                    doc.setFontSize(9);
-                    const gargTxt = st.gargalos.length ? st.gargalos.map(g => `${g.name} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(0) + '%'}`).join(', ') : 'nenhum';
-                    const valTxt = st.validacoes.length ? st.validacoes.map(v2 => `${v2.nome}: filhas ${v2.demFilhas.toFixed(0)}t ${v2.alerta ? '>' : '<='} mae ${v2.demPropria.toFixed(0)}t`).join(', ') : 'nenhuma';
+                    const gargTxt = this.resumirLista(st.gargalos, 4, g => `${g.name} ${!isFinite(g.oc) ? 'ERRO' : g.oc.toFixed(0) + '%'}`) || 'nenhum';
+                    const valTxt = this.resumirLista(st.validacoes, 4, v2 => `${v2.nome}: filhas ${v2.demFilhas.toFixed(0)}t ${v2.alerta ? '>' : '<='} mae ${v2.demPropria.toFixed(0)}t`) || 'nenhuma';
                     const sugFmt = s => s.maxed ? `${s.name}: sem degrau — avaliar 4º turno/nova linha` : `${s.name} → ${s.nextBase ? s.nextBase + 'h' : 'turma limitada'}${s.resolves ? ' ✓' : ''}`;
-                    const sugTxt = st.sugestoes.length ? st.sugestoes.map(sugFmt).join(', ') : 'nenhuma';
-                    const lines = [
-                        'Total Necessário: ' + totalEx.toFixed(1) + ' FTE',
-                        '(Direta ' + st.moDir.toFixed(1) + ' + Indireta ' + st.moInd.toFixed(1) + ' + ' + fer + ' feristas)',
-                        'M.O. Atual: ' + atualEx.toFixed(1) + ' FTE',
-                        diff > 0.5 ? 'Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? 'Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : 'Equilibrado',
-                        '',
-                        'Gargalos (OC > ' + LIMITE_GARGALO + '%): ' + gargTxt,
-                        '',
-                        'Validações hierárquicas: ' + valTxt,
-                        '',
-                        'Sugestão de turnos (OC > 100%): ' + sugTxt
-                    ];
-                    let ly = y + 20;
-                    lines.forEach(ln => {
-                        if (!ln) { ly += 2.5; return; }
-                        const wrap = doc.splitTextToSize(ln, cw - 8);
-                        doc.text(wrap, x + 4, ly, { lineHeightFactor: 1.2 });
-                        ly += 5;
-                    });
+                    const sugTxt = this.resumirLista(st.sugestoes, 4, sugFmt) || 'nenhuma';
+                    return {
+                        x: 14 + i * (cw + 5), y, w: cw, titulo: title, tituloSize: 11,
+                        subtitulo: `Demanda ${v > 0 ? '+' : ''}${v}% · Setup ${setup} h/dia · Abs. ${this.state.absPct}%`,
+                        fontSize: 9,
+                        linhas: [
+                            'Total Necessário: ' + totalEx.toFixed(1) + ' FTE',
+                            '(Direta ' + st.moDir.toFixed(1) + ' + Indireta ' + st.moInd.toFixed(1) + ' + ' + fer + ' feristas)',
+                            'M.O. Atual: ' + atualEx.toFixed(1) + ' FTE',
+                            diff > 0.5 ? 'Déficit de ' + diff.toFixed(1) + ' vagas' : diff < -0.5 ? 'Excesso de ' + Math.abs(diff).toFixed(1) + ' vagas' : 'Equilibrado',
+                            '',
+                            'Gargalos (OC > ' + LIMITE_GARGALO + '%): ' + gargTxt,
+                            'Validações hierárquicas: ' + valTxt,
+                            'Sugestão de turnos (OC > 100%): ' + sugTxt
+                        ]
+                    };
                 });
-                y += 82;
+                const layouts = cfgs.map(c => this.layoutCardCenario(doc, c));
+                const cardH = Math.max.apply(null, layouts.map(l => l.altura));
+                cfgs.forEach((c, i) => this.desenharCardCenario(doc, Object.assign({}, c, { h: cardH }), layouts[i]));
+                y += cardH + 6;
 
                 const resumo = [
                     ['Cenário', 'Demanda', 'Setup (h/dia)', 'M.O. Necessária', 'M.O. Atual', 'Δ Equipe', 'Gargalos', 'Sugestões de turno'],
